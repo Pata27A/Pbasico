@@ -1,0 +1,21 @@
+{% extends 'base_menu.html' %}
+
+{% block content %}
+<h2>Editar Movimiento</h2>
+<form method="POST">
+    <label>Tipo:</label>
+    <select name="tipo" required>
+        <option value="Ingreso" {% if movimiento.tipo == 'Ingreso' %}selected{% endif %}>Ingreso</option>
+        <option value="Egreso" {% if movimiento.tipo == 'Egreso' %}selected{% endif %}>Egreso</option>
+    </select><br>
+
+    <label>Monto:</label>
+    <input type="number" step="0.01" name="monto" value="{{ movimiento.monto }}" required><br>
+
+    <label>Descripción:</label>
+    <input type="text" name="descripcion" value="{{ movimiento.descripcion }}"><br>
+
+    <button type="submit">Guardar Cambios</button>
+    <a href="{{ url_for('main_bp.caja') }}">Cancelar</a>
+</form>
+{% endblock %}

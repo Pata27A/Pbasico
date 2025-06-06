@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{% block title %}PBasico{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/menu.css') }}">
+    <style>
+        /* Opcional: puntero para links colapsables */
+        a[data-bs-toggle="collapse"] {
+            cursor: pointer;
+        }
+        /* Íconos para flechas desplegables */
+        .sidebar a[data-bs-toggle="collapse"]::after {
+            content: '\25BC'; /* Flecha hacia abajo */
+            float: right;
+            transition: transform 0.3s ease;
+        }
+        .sidebar a[data-bs-toggle="collapse"][aria-expanded="true"]::after {
+            transform: rotate(-180deg); /* Flecha hacia arriba */
+        }
+        /* Mejor contraste para links secundarios */
+        .sidebar a.text-white-50:hover {
+            color: #fff !important;
+            text-decoration: underline;
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <div class="d-flex">
+        <!-- Sidebar -->
+        <nav class="sidebar bg-dark text-white p-3" style="width: 220px; min-height: 100vh;">
+            <h3 class="mb-4">PBasico</h3>
+
+            <a class="d-block text-white mb-2" data-bs-toggle="collapse" href="#stockSubmenu" role="button" aria-expanded="false" aria-controls="stockSubmenu">
+                Stock
+            </a>
+            <div class="collapse ps-3" id="stockSubmenu">
+                <a class="d-block text-white-50 mb-1" href="{{ url_for('main_bp.listar_productos') }}">Ver productos</a>
+                <a class="d-block text-white-50" href="{{ url_for('main_bp.agregar_producto') }}">Agregar producto</a>
+            </div>
+
+            <a class="d-block text-white mb-2" data-bs-toggle="collapse" href="#cajaSubmenu" role="button" aria-expanded="false" aria-controls="cajaSubmenu">
+                Caja
+            </a>
+            <div class="collapse ps-3" id="cajaSubmenu">
+                <a class="d-block text-white-50 mb-1" href="{{ url_for('main_bp.caja_resumen') }}">Resumen de Caja</a>
+                <a class="d-block text-white-50 mb-1" href="{{ url_for('main_bp.caja_apertura') }}">Apertura de Caja</a>
+                <a class="d-block text-white-50 mb-1" href="{{ url_for('main_bp.caja_cierre') }}">Cierre de Caja</a>
+                <a class="d-block text-white-50" href="{{ url_for('main_bp.caja_nuevo_movimiento') }}">Registrar Movimiento</a>
+            </div>
+
+            <a class="d-block text-white mb-2" href="{{ url_for('main_bp.facturacion') }}">Facturación</a>
+            <a class="d-block text-white mb-2" href="{{ url_for('main_bp.cobranzas') }}">Cobranzas</a>
+            <a class="d-block text-white mb-2" href="{{ url_for('main_bp.ganancias') }}">Ganancias</a>
+            <a class="d-block text-white mb-2" href="{{ url_for('main_bp.informes') }}">Informes</a>
+            <a class="d-block text-white mb-2" href="{{ url_for('main_bp.rg90') }}">RG90</a>
+
+            <a class="d-block text-danger mt-4" href="{{ url_for('main_bp.logout') }}">Cerrar sesión</a>
+        </nav>
+
+        <!-- Contenido -->
+        <main class="content flex-grow-1 p-4">
+            {% block content %}
+            <!-- Aquí va el contenido específico de cada página -->
+            {% endblock %}
+        </main>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

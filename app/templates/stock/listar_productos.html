@@ -1,0 +1,36 @@
+{% extends "base_menu.html" %}
+
+{% block content %}
+<h1>Lista de Productos</h1>
+
+<table class="table table-striped table-bordered">
+    <thead class="table-dark">
+        <tr>
+            <th>Código</th>
+            <th>Nombre</th>
+            <th>Precio Costo</th>
+            <th>Precio Venta</th>
+            <th>Stock Mínimo</th>
+            <th>Stock Actual</th>
+            <th>Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for producto in productos %}
+        <tr>
+            <td>{{ producto.codigo }}</td>
+            <td>{{ producto.nombre }}</td>
+            <td>{{ producto.precio_costo }}</td>
+            <td>{{ producto.precio_venta }}</td>
+            <td>{{ producto.stock_minimo }}</td>
+            <td>{{ producto.stock_actual }}</td>
+            <td>
+                <a href="{{ url_for('main_bp.editar_producto', id=producto.id) }}" class="btn btn-sm btn-primary">Editar</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<a href="{{ url_for('main_bp.agregar_producto') }}" class="btn btn-success">Agregar producto</a>
+{% endblock %}

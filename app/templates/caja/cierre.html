@@ -1,0 +1,16 @@
+{% extends 'base_menu.html' %}
+{% block title %}Cierre de Caja{% endblock %}
+{% block content %}
+<h2>Cierre de Caja</h2>
+
+{% if caja %}
+    <p><strong>Fecha:</strong> {{ caja.fecha }}</p>
+    <p><strong>Monto Apertura:</strong> {{ caja.monto_apertura }}</p>
+    <form method="post">
+        <p><strong>Saldo Final Calculado:</strong> {{ calcular_saldo_cierre(caja) }}</p>
+        <button class="btn btn-danger">Cerrar Caja</button>
+    </form>
+{% else %}
+    <div class="alert alert-warning">No hay caja abierta para hoy.</div>
+{% endif %}
+{% endblock %}

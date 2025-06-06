@@ -1,0 +1,59 @@
+/* Sidebar */
+.sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    width: 220px;
+    background-color: #343a40; /* gris oscuro */
+    display: flex;
+    flex-direction: column;
+    padding-top: 20px;
+    box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+}
+
+.sidebar h3 {
+    color: #fff;
+    text-align: center;
+    margin-bottom: 30px;
+    font-weight: 700;
+}
+
+.sidebar a {
+    color: #adb5bd; /* gris claro */
+    padding: 12px 20px;
+    text-decoration: none;
+    font-weight: 500;
+    transition: background-color 0.3s, color 0.3s;
+    border-left: 4px solid transparent;
+}
+
+.sidebar a:hover {
+    background-color: #495057; /* un poco más claro */
+    color: #fff;
+    border-left: 4px solid #0d6efd; /* azul bootstrap */
+}
+
+.sidebar a.mt-4 {
+    margin-top: auto; /* separa el "Cerrar sesión" abajo */
+    border-left: none;
+}
+
+/* Contenido principal */
+.content {
+    margin-left: 220px; /* dejar espacio para la sidebar */
+    padding: 40px 30px;
+    background-color: #f8f9fa; /* gris muy claro */
+    min-height: 100vh;
+    box-sizing: border-box;
+}
+
+.content h1 {
+    font-weight: 700;
+    color: #212529;
+}
+
+.content p {
+    font-size: 1.1rem;
+    color: #495057;
+}

@@ -1,0 +1,68 @@
+{% extends "base_menu.html" %}
+
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/formulario.css') }}">
+<h1>{{ titulo }}</h1>
+<form method="POST">
+    {{ form.hidden_tag() }}
+
+    <div class="mb-3">
+        {{ form.codigo.label(class="form-label") }}
+        {{ form.codigo(class="form-control") }}
+        {% for error in form.codigo.errors %}
+            <div class="text-danger">{{ error }}</div>
+        {% endfor %}
+    </div>
+
+    <div class="mb-3">
+        {{ form.nombre.label(class="form-label") }}
+        {{ form.nombre(class="form-control") }}
+        {% for error in form.nombre.errors %}
+            <div class="text-danger">{{ error }}</div>
+        {% endfor %}
+    </div>
+
+    <div class="mb-3">
+        {{ form.categoria_id.label(class="form-label") }}
+        {{ form.categoria_id(class="form-select") }}
+        {% for error in form.categoria_id.errors %}
+            <div class="text-danger">{{ error }}</div>
+        {% endfor %}
+    </div>
+
+    <div class="mb-3">
+        {{ form.precio_costo.label(class="form-label") }}
+        {{ form.precio_costo(class="form-control") }}
+        {% for error in form.precio_costo.errors %}
+            <div class="text-danger">{{ error }}</div>
+        {% endfor %}
+    </div>
+
+    <div class="mb-3">
+        {{ form.precio_venta.label(class="form-label") }}
+        {{ form.precio_venta(class="form-control") }}
+        {% for error in form.precio_venta.errors %}
+            <div class="text-danger">{{ error }}</div>
+        {% endfor %}
+    </div>
+
+    <div class="mb-3">
+        {{ form.stock_minimo.label(class="form-label") }}
+        {{ form.stock_minimo(class="form-control") }}
+        {% for error in form.stock_minimo.errors %}
+            <div class="text-danger">{{ error }}</div>
+        {% endfor %}
+    </div>
+
+    <div class="mb-3">
+        {{ form.stock_actual.label(class="form-label") }}
+        {{ form.stock_actual(class="form-control") }}
+        {% for error in form.stock_actual.errors %}
+            <div class="text-danger">{{ error }}</div>
+        {% endfor %}
+    </div>
+
+    <button type="submit" class="btn btn-primary">Guardar</button>
+    <a href="{{ url_for('main_bp.listar_productos') }}" class="btn btn-secondary">Cancelar</a>
+</form>
+{% endblock %}

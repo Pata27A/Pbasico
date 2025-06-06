@@ -1,0 +1,24 @@
+{% extends 'base_menu.html' %}
+{% block title %}Editar Movimiento{% endblock %}
+{% block content %}
+<h2>Editar Movimiento</h2>
+
+<form method="post">
+    <div class="mb-3">
+        <label>Tipo</label>
+        <select name="tipo" class="form-select">
+            <option value="Ingreso" {% if movimiento.tipo == 'Ingreso' %}selected{% endif %}>Ingreso</option>
+            <option value="Egreso" {% if movimiento.tipo == 'Egreso' %}selected{% endif %}>Egreso</option>
+        </select>
+    </div>
+    <div class="mb-3">
+        <label>Monto</label>
+        <input type="number" step="0.01" name="monto" class="form-control" value="{{ movimiento.monto }}" required>
+    </div>
+    <div class="mb-3">
+        <label>Descripción</label>
+        <input type="text" name="descripcion" class="form-control" value="{{ movimiento.descripcion }}" required>
+    </div>
+    <button class="btn btn-success">Actualizar</button>
+</form>
+{% endblock %}

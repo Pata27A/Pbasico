@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Login</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style_login.css') }}">
+
+</head>
+<body>
+    <h2>Ingresar al sistema</h2>
+    <form method="POST">
+    {{ form.hidden_tag() }}
+    <div>
+        <label for="{{ form.nombre_usuario.id }}">{{ form.nombre_usuario.label }}</label>
+        {{ form.nombre_usuario(id=form.nombre_usuario.id) }}
+    </div>
+    <div>
+        <label for="{{ form.password.id }}">{{ form.password.label }}</label>
+        {{ form.password(id=form.password.id) }}
+    </div>
+    <div>
+        {{ form.submit() }}
+    </div>
+</form>
+</body>
+</html>

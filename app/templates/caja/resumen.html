@@ -1,0 +1,45 @@
+{% extends 'base_menu.html' %}
+{% block title %}Resumen de Caja{% endblock %}
+{% block content %}
+<h2>Resumen de Caja</h2>
+
+{% if caja %}
+    <p><strong>Fecha:</strong> {{ caja.fecha }}</p>
+    <p><strong>Monto Apertura:</strong> {{ caja.monto_apertura }}</p>
+    <p><strong>Estado:</strong> {{ 'Abierta' if caja.abierta else 'Cerrada' }}</p>
+    <p><strong>Saldo Final:</strong> {{ saldo_final }}</p>
+
+    <h4 class="mt-4">Movimientos</h4>
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Fecha</th>
+                <th>Tipo</th>
+                <th>Monto</th>
+                <th>Descripción</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for m in movimientos %}
+            <tr>
+                <td>{{ m.fecha }}</td>
+                <td>{{ m.tipo }}</td>
+                <td>{{ m.monto }}</td>
+                <td>{{ m.descripcion }}</td>
+                <td>
+                    {% if caja.abierta %}
+                    <a href="{{ url_for('main_bp.editar_movimiento', id=m.id) }}" class="btn btn-sm btn-warning">Editar</a>
+                    <form action="{{ url_for('main_bp.eliminar_movimiento', id=m.id) }}" method="post" style="display:inline;">
+                        <button class="btn btn-sm btn-danger" onclick="return confirm('¿Eliminar?')">Eliminar</button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% else %}
+    <p>No hay caja abierta hoy.</p>
+{% endif %}
+{% endblock %}

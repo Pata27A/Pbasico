@@ -1,0 +1,74 @@
+{% extends 'base_menu.html' %}
+{% block content %}
+<h2>Caja del día {{ caja.fecha if caja else '' }}</h2>
+
+{% if not caja or caja.estado == 'Cerrada' %}
+<form method="post">
+    <input type="hidden" name="accion" value="abrir">
+    <label>Saldo inicial:</label>
+    <input type="number" step="0.01" name="saldo_inicial" required>
+    <button type="submit">Abrir Caja</button>
+</form>
+{% else %}
+<p><strong>Saldo inicial:</strong> {{ caja.saldo_inicial }}</p>
+<p><strong>Estado:</strong> {{ caja.estado }}</p>
+<p><strong>Hora cierre:</strong> {{ caja.hora_cierre if caja.hora_cierre else 'Caja abierta' }}</p>
+
+<form method="post">
+    <input type="hidden" name="accion" value="cerrar">
+    <button type="submit">Cerrar Caja</button>
+</form>
+
+<h3>Registrar Movimiento</h3>
+<form action="{{ url_for('main_bp.movimiento_caja') }}" method="post">
+    <label>Tipo:</label>
+    <select name="tipo" required>
+        <option value="Ingreso">Ingreso</option>
+        <option value="Egreso">Egreso</option>
+    </select><br>
+
+    <label>Monto:</label>
+    <input type="number" step="0.01" name="monto" required><br>
+
+    <label>Descripción:</label>
+    <input type="text" name="descripcion"><br>
+
+    <button type="submit">Registrar Movimiento</button>
+</form>
+
+<h3>Movimientos del día</h3>
+<table border="1" cellpadding="5">
+    <thead>
+        <tr>
+            <th>Fecha</th>
+            <th>Tipo</th>
+            <th>Monto</th>
+            <th>Descripción</th>
+            <th>Acción</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for m in movimientos %}
+        <tr>
+            <td>{{ m.fecha_hora.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+            <td>{{ m.tipo }}</td>
+            <td>{{ m.monto }}</td>
+            <td>{{ m.descripcion }}</td>
+            <td>
+                <a href="{{ url_for('main_bp.editar_movimiento', id=m.id) }}">Editar</a>
+                <form action="{{ url_for('main_bp.eliminar_movimiento', id=m.id) }}" method="post" style="display:inline;" onsubmit="return confirm('¿Seguro que deseas eliminar este movimiento?');">
+                    <button type="submit">Eliminar</button>
+                </form>
+            </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5">No hay movimientos registrados.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<h3>Resumen</h3>
+<p>Saldo final del día: <strong>{{ saldo_final }}</strong></p>
+
+{% endif %}
+{% endblock %}
