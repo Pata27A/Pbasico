@@ -1,0 +1,48 @@
+{% extends 'base_menu.html' %}
+{% block title %}Nueva Factura POS{% endblock %}
+{% block content %}
+
+<div class="container mt-3">
+  <h2>Facturación POS</h2>
+
+  <!-- Cliente seleccionado -->
+  <div class="mb-2">
+    <strong>Cliente:</strong> <span id="clienteNombre">Consumidor Final</span>
+    <button class="btn btn-sm btn-outline-primary" onclick="abrirModalCliente()">F5 - Cambiar</button>
+  </div>
+
+  <!-- Buscador -->
+  <input type="text" id="buscadorProducto" class="form-control mb-2" placeholder="Buscar producto o código...">
+
+  <!-- Lista de productos agregados -->
+  <table class="table table-sm table-striped">
+    <thead>
+      <tr>
+        <th>Código</th><th>Producto</th><th>Cant</th><th>Precio</th><th>Subtotal</th><th></th>
+      </tr>
+    </thead>
+    <tbody id="tablaProductos"></tbody>
+    <tfoot>
+      <tr>
+        <td colspan="4" class="text-end"><strong>Total:</strong></td>
+        <td id="totalFactura">0</td>
+        <td></td>
+      </tr>
+    </tfoot>
+  </table>
+
+  <!-- Acciones -->
+  <div class="d-flex justify-content-between mt-3">
+    <button class="btn btn-secondary" onclick="reiniciarFactura()">Cancelar</button>
+    <div>
+      <button class="btn btn-warning me-2" onclick="abrirModalCobro()">F6 - Cobrar</button>
+      <button class="btn btn-success" onclick="finalizarFactura()">Finalizar</button>
+    </div>
+  </div>
+</div>
+
+{% include 'facturacion/cliente_modal.html' %}
+{% include 'facturacion/cobro_modal.html' %}
+
+<script src="{{ url_for('static', filename='js/facturacion/pos.js') }}"></script>
+{% endblock %}

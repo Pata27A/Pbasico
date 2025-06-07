@@ -1,0 +1,35 @@
+{% extends 'base_menu.html' %}
+{% block title %}Factura {{ factura.numero }}{% endblock %}
+{% block content %}
+
+<div class="container mt-3">
+  <h2>Factura {{ factura.numero }}</h2>
+  <p><strong>Fecha:</strong> {{ factura.fecha.strftime('%d/%m/%Y %H:%M') }}</p>
+  <p><strong>Cliente:</strong> {{ factura.cliente.nombre if factura.cliente else 'Consumidor Final' }}</p>
+
+  <table class="table table-bordered table-sm mt-3">
+    <thead>
+      <tr><th>Producto</th><th>Cantidad</th><th>Precio</th><th>Subtotal</th></tr>
+    </thead>
+    <tbody>
+      {% for item in factura.detalles %}
+      <tr>
+        <td>{{ item.producto.nombre }}</td>
+        <td>{{ item.cantidad }}</td>
+        <td>{{ item.precio_unitario }}</td>
+        <td>{{ item.subtotal }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr>
+        <td colspan="3" class="text-end"><strong>Total:</strong></td>
+        <td><strong>{{ factura.total }}</strong></td>
+      </tr>
+    </tfoot>
+  </table>
+
+  <button class="btn btn-primary mt-3" onclick="window.print()">Imprimir</button>
+</div>
+
+{% endblock %}
