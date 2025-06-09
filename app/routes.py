@@ -1,16 +1,16 @@
 import datetime
+import json
 from flask import Blueprint, jsonify, render_template, redirect, url_for, flash, request
 from flask_login import login_user, logout_user, login_required, current_user
 from app.forms import LoginForm, ProductoForm
 from app.models import Caja, Cliente, Cobranza, DetalleFactura, Factura, MetodoPago, MovimientoCaja, Producto, Usuario, Categoria
 from app import db
 
-
 main_bp = Blueprint('main_bp', __name__)
 
+# ---------------------- AUTENTICACIÓN ----------------------
 @main_bp.route('/')
 def index():
-    # Si ya está autenticado, redirige al menú principal
     if current_user.is_authenticated:
         return redirect(url_for('main_bp.menu_principal'))
     return redirect(url_for('main_bp.login'))
@@ -48,25 +48,24 @@ def menu_principal():
 def dashboard():
     return render_template('dashboard.html')
 
-#------Stock-----------
+# ---------------------- STOCK ----------------------
 @main_bp.route('/stock')
 @login_required
 def stock():
     return "Aquí va la Gestión de Stock"
-@main_bp.route('/stock/productos')
 
 @main_bp.route('/productos')
+@login_required
 def listar_productos():
     productos = Producto.query.all()
     return render_template('stock/listar_productos.html', productos=productos)
 
-
 @main_bp.route('/producto/agregar', methods=['GET', 'POST'])
+@login_required
 def agregar_producto():
     form = ProductoForm()
-    # Cargar categorías para el select
     form.categoria_id.choices = [(0, 'Sin Categoría')] + [(c.id, c.nombre) for c in Categoria.query.all()]
-
+    
     if form.validate_on_submit():
         categoria_id = form.categoria_id.data if form.categoria_id.data != 0 else None
         nuevo_producto = Producto(
@@ -81,14 +80,13 @@ def agregar_producto():
         db.session.add(nuevo_producto)
         db.session.commit()
         flash('Producto agregado correctamente.', 'success')
-        # Traer los productos para pasar una lista iterable al template
         productos = Producto.query.all()
         return render_template('stock/listar_productos.html', productos=productos)
 
     return render_template('stock/producto_form.html', form=form, titulo='Agregar Producto')
 
-
 @main_bp.route('/producto/editar/<int:id>', methods=['GET', 'POST'])
+@login_required
 def editar_producto(id):
     producto = Producto.query.get_or_404(id)
     form = ProductoForm(obj=producto)
@@ -110,31 +108,31 @@ def editar_producto(id):
     return render_template('stock/producto_form.html', form=form, titulo='Editar Producto')
 
 
-#---------CAJA--------------------
+# ---------------------- CAJA ----------------------
 def calcular_saldo_cierre(caja):
     movimientos = MovimientoCaja.query.filter_by(caja_id=caja.id).all()
-    ingresos = sum(m.monto for m in movimientos if m.tipo == 'Ingreso')
-    egresos = sum(m.monto for m in movimientos if m.tipo == 'Egreso')
+    ingresos = sum(m.monto for m in movimientos if m.tipo.lower() == 'ingreso')
+    egresos = sum(m.monto for m in movimientos if m.tipo.lower() == 'egreso')
     return caja.monto_apertura + ingresos - egresos
 
+def obtener_caja_abierta():
+    hoy = datetime.date.today()
+    caja = Caja.query.filter_by(fecha=hoy, abierta=True).first()
+    if not caja:
+        raise Exception("No hay una caja abierta para el día de hoy.")
+    return caja
 
-# -------- Resumen de Caja --------
 @main_bp.route('/caja/resumen')
+@login_required
 def caja_resumen():
     hoy = datetime.date.today()
     caja = Caja.query.filter_by(fecha=hoy).first()
-
-    movimientos = []
-    saldo_final = 0
-    if caja:
-        movimientos = MovimientoCaja.query.filter_by(caja_id=caja.id).order_by(MovimientoCaja.fecha).all()
-        saldo_final = calcular_saldo_cierre(caja)
-
+    movimientos = MovimientoCaja.query.filter_by(caja_id=caja.id).order_by(MovimientoCaja.fecha).all() if caja else []
+    saldo_final = calcular_saldo_cierre(caja) if caja else 0
     return render_template('caja/resumen.html', caja=caja, movimientos=movimientos, saldo_final=saldo_final)
 
-
-# -------- Apertura de Caja --------
 @main_bp.route('/caja/apertura', methods=['GET', 'POST'])
+@login_required
 def caja_apertura():
     hoy = datetime.date.today()
     caja = Caja.query.filter_by(fecha=hoy).first()
@@ -152,9 +150,8 @@ def caja_apertura():
 
     return render_template('caja/apertura.html', caja=caja)
 
-
-# -------- Cierre de Caja --------
 @main_bp.route('/caja/cierre', methods=['GET', 'POST'])
+@login_required
 def caja_cierre():
     hoy = datetime.date.today()
     caja = Caja.query.filter_by(fecha=hoy, abierta=True).first()
@@ -168,9 +165,6 @@ def caja_cierre():
 
     return render_template('caja/cierre.html', caja=caja, calcular_saldo_cierre=calcular_saldo_cierre)
 
-
-# -------- Nuevo Movimiento --------
-# -------- Nuevo Movimiento --------
 @main_bp.route('/caja/movimiento/nuevo', methods=['GET', 'POST'])
 @login_required
 def caja_nuevo_movimiento():
@@ -208,8 +202,6 @@ def caja_nuevo_movimiento():
 
     return render_template('caja/nuevo_movimiento.html')
 
-
-# -------- Editar Movimiento --------
 @main_bp.route('/caja/movimiento/editar/<int:id>', methods=['GET', 'POST'])
 @login_required
 def editar_movimiento(id):
@@ -234,8 +226,6 @@ def editar_movimiento(id):
 
     return render_template('caja/editar_movimiento.html', movimiento=movimiento)
 
-
-# -------- Eliminar Movimiento --------
 @main_bp.route('/caja/movimiento/eliminar/<int:id>', methods=['POST'])
 @login_required
 def eliminar_movimiento(id):
@@ -250,9 +240,8 @@ def eliminar_movimiento(id):
     flash('Movimiento eliminado.', 'success')
     return redirect(url_for('main_bp.caja_resumen'))
 
-#----------Facturacion----------
-# ------------------ FACTURACIÓN POS ------------------ #
 
+# ---------------------- FACTURACIÓN ----------------------
 @main_bp.route('/facturacion')
 @login_required
 def facturacion():
@@ -264,57 +253,51 @@ def facturacion():
                            clientes=clientes,
                            metodos_pago=metodos_pago)
 
-@main_bp.route('/facturacion/guardar', methods=['POST'])
+@main_bp.route('/factura/nueva', methods=['POST'])
 @login_required
 def guardar_factura():
-    data = request.get_json()
-
     try:
-        cliente_id = data.get('cliente_id')
-        total = float(data['total'])
-        impuesto = float(data['impuesto'])
-        detalles = data['detalles']
-        pagos = data.get('pagos', [])  # lista con pagos: [{monto, metodo_pago_id, descripcion}]
+        cliente_id = request.form.get('cliente_id')
+        productos = request.form.getlist('producto_id[]')
+        cantidades = request.form.getlist('cantidad[]')
+        precios = request.form.getlist('precio[]')
+        pagos = json.loads(request.form.get('pagos_json', '[]'))
 
-        numero_factura = f"F{datetime.now().strftime('%Y%m%d%H%M%S')}"
         nueva_factura = Factura(
-            cliente_id=cliente_id,
-            usuario_id=current_user.id,
-            numero=numero_factura,
-            total=total,
-            impuesto=impuesto
+            numero='F-0001',  # Reemplazar por función generar_numero_factura()
+            fecha=datetime.datetime.now(),
+            cliente_id=cliente_id if cliente_id else None,
+            total=sum(float(cant) * float(precio) for cant, precio in zip(cantidades, precios)),
+            usuario_id=current_user.id
         )
         db.session.add(nueva_factura)
         db.session.flush()
 
-        for item in detalles:
+        for prod_id, cant, precio in zip(productos, cantidades, precios):
             detalle = DetalleFactura(
                 factura_id=nueva_factura.id,
-                producto_id=item['producto_id'],
-                cantidad=item['cantidad'],
-                precio_unitario=item['precio_unitario'],
-                subtotal=item['subtotal']
+                producto_id=prod_id,
+                cantidad=float(cant),
+                precio_unitario=float(precio)
             )
             db.session.add(detalle)
 
         for pago in pagos:
-            cobranza = Cobranza(
+            pago_db = Cobranza(
                 factura_id=nueva_factura.id,
-                fecha=datetime.now(),
+                metodo_pago_id=pago['metodo_pago_id'],
                 monto=float(pago['monto']),
-                metodo_pago_id=int(pago['metodo_pago_id']),
-                descripcion=pago.get('descripcion', ''),
                 usuario_id=current_user.id
             )
-            db.session.add(cobranza)
+            db.session.add(pago_db)
 
         db.session.commit()
-        return jsonify({'success': True, 'factura_id': nueva_factura.id})
-
+        flash('Factura guardada correctamente.', 'success')
     except Exception as e:
         db.session.rollback()
-        return jsonify({'success': False, 'error': str(e)})
+        flash(f'Error al guardar la factura: {str(e)}', 'danger')
 
+    return redirect(url_for('main_bp.facturacion'))
 @main_bp.route('/facturacion/api/buscar_producto')
 @login_required
 def buscar_producto():
@@ -331,9 +314,9 @@ def buscar_producto():
     producto = Producto.query.filter(Producto.codigo.ilike(f"%{codigo}%")).first()
     if producto:
         return jsonify({
-            'id': producto.id,
+            'codigo': producto.codigo,
             'nombre': producto.nombre,
-            'precio': producto.precio,
+            'precio': producto.precio_venta,  # <- Renombrado a 'precio'
             'cantidad': cantidad
         })
     else:
@@ -353,31 +336,49 @@ def listado_facturas():
 
 # ------------------ COBRANZAS ------------------ #
 
-@main_bp.route('/facturacion/cobro/<int:factura_id>', methods=['GET', 'POST'])
+@main_bp.route('/factura/<int:factura_id>/cobrar', methods=['GET', 'POST'])
 @login_required
 def cobrar_factura(factura_id):
     factura = Factura.query.get_or_404(factura_id)
-    metodos_pago = MetodoPago.query.all()
 
     if request.method == 'POST':
-        monto = float(request.form['monto'])
-        metodo_pago_id = int(request.form['metodo_pago_id'])
-        descripcion = request.form.get('descripcion', '')
+        try:
+            monto = float(request.form['monto'])
+            metodo_pago_id = int(request.form['metodo_pago_id'])
+            descripcion = request.form.get('descripcion', '')
 
-        nueva_cobranza = Cobranza(
-            factura_id=factura.id,
-            fecha=datetime.now(),
-            monto=monto,
-            metodo_pago_id=metodo_pago_id,
-            descripcion=descripcion,
-            usuario_id=current_user.id
-        )
-        db.session.add(nueva_cobranza)
-        db.session.commit()
-        flash('Pago registrado correctamente.', 'success')
-        return redirect(url_for('main_bp.listado_facturas'))
+            nueva_cobranza = Cobranza(
+                factura_id=factura.id,
+                fecha=datetime.now(),
+                monto=monto,
+                metodo_pago_id=metodo_pago_id,
+                descripcion=descripcion,
+                usuario_id=current_user.id
+            )
+            db.session.add(nueva_cobranza)
 
-    return render_template('facturacion/cobro.html', factura=factura, metodos_pago=metodos_pago)
+            # Registrar movimiento de caja
+            caja = obtener_caja_abierta()
+            movimiento = MovimientoCaja(
+                caja_id=caja.id,
+                tipo='Ingreso',
+                monto=monto,
+                descripcion=f'Cobro de factura {factura.numero}',
+                usuario_id=current_user.id
+            )
+            db.session.add(movimiento)
+
+            db.session.commit()
+            flash('Cobro registrado correctamente', 'success')
+            return redirect(url_for('ver_factura', factura_id=factura.id))
+
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error al registrar el cobro: {str(e)}', 'danger')
+
+    metodos_pago = MetodoPago.query.all()
+    return render_template('factura/cobrar.html', factura=factura, metodos_pago=metodos_pago)
+
 
 @main_bp.route('/cobranzas')
 @login_required
@@ -410,6 +411,51 @@ def registrar_cobranza(factura_id):
         return redirect(url_for('main_bp.listado_facturas'))
 
     return render_template('cobranzas/registrar.html', factura=factura, metodos=metodos)
+
+#------------Clientes------------------------
+# Buscar clientes por nombre o documento
+@main_bp.route('/api/clientes/buscar')
+@login_required
+def buscar_clientes():
+    query = request.args.get('q', '').strip()
+    resultados = Cliente.query.filter(
+        (Cliente.nombre.ilike(f'%{query}%')) |
+        (Cliente.documento.ilike(f'%{query}%'))
+    ).all()
+
+    clientes_json = [{
+        'id': c.id,
+        'nombre': c.nombre,
+        'documento': c.documento or '',
+        'telefono': c.telefono or '',
+        'email': c.email or ''
+    } for c in resultados]
+
+    return jsonify(clientes_json)
+
+
+# Registrar nuevo cliente desde modal
+@main_bp.route('/api/clientes/crear', methods=['POST'])
+@login_required
+def crear_cliente():
+    data = request.get_json()
+
+    try:
+        nuevo_cliente = Cliente(
+            nombre=data['nombre'],
+            documento=data.get('documento', ''),
+            telefono=data.get('telefono', ''),
+            email=data.get('email', '')
+        )
+        db.session.add(nuevo_cliente)
+        db.session.commit()
+        return jsonify({'success': True, 'cliente': {
+            'id': nuevo_cliente.id,
+            'nombre': nuevo_cliente.nombre
+        }})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)})
 
 #-------------Ganancias-----------------
 @main_bp.route('/ganancias')

@@ -5,6 +5,7 @@ from app import bcrypt
 from flask_login import UserMixin
 
 
+
 # ---------------- Roles y Usuarios ----------------
 
 class Rol(db.Model):

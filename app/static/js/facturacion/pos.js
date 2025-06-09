@@ -1,46 +1,49 @@
 let productos = [];
 let clienteSeleccionado = null;
+let cantidadPendiente = null;
 
 // Buscar producto por código o nombre
 document.getElementById("buscadorProducto").addEventListener("keypress", async (e) => {
-  if (e.key === "Enter") {
-    e.preventDefault();
-    const texto = e.target.value.trim();
-    if (texto === "") return;
+  if (e.key !== "Enter") return;
+  e.preventDefault();
 
-    let cantidad = 1;
-    let codigo = texto;
+  const texto = e.target.value.trim();
+  if (!texto) return;
 
-    if (texto.startsWith("+")) {
-      const partes = texto.split(" ");
-      cantidad = parseInt(partes[0].substring(1)) || 1;
-      codigo = partes.slice(1).join(" ");
+  // Si escribe +5, guarda la cantidad pendiente
+  if (/^\+\d+$/.test(texto)) {
+    cantidadPendiente = parseInt(texto.slice(1), 10);
+    e.target.value = "";
+    return;
+  }
+
+  const cantidad = cantidadPendiente || 1;
+  cantidadPendiente = null;
+
+  try {
+    const res = await fetch(`/facturacion/api/buscar_producto?codigo=${encodeURIComponent(texto)}`);
+    const data = await res.json();
+
+    if (data && data.codigo) {
+      agregarProducto(data, cantidad);
+      e.target.value = "";
+    } else {
+      alert("Producto no encontrado.");
     }
-
-    try {
-      const res = await fetch(`/facturacion/api/buscar_producto?codigo=${codigo}`);
-      const data = await res.json();
-
-      if (data && data.id) {
-        agregarProducto(data, cantidad);
-        e.target.value = "";
-      } else {
-        alert("Producto no encontrado.");
-      }
-    } catch {
-      alert("Error al buscar producto.");
-    }
+  } catch (err) {
+    alert("Error al buscar producto.");
+    console.error(err);
   }
 });
 
-// Agregar producto a la tabla
+// Agregar producto a la lista
 function agregarProducto(producto, cantidad) {
-  const existente = productos.find(p => p.id === producto.id);
+  const existente = productos.find(p => p.codigo === producto.codigo);
   if (existente) {
     existente.cantidad += cantidad;
   } else {
     productos.push({
-      id: producto.id,
+      codigo: producto.codigo,
       nombre: producto.nombre,
       precio: producto.precio,
       cantidad: cantidad
@@ -49,18 +52,20 @@ function agregarProducto(producto, cantidad) {
   renderTabla();
 }
 
+// Renderizar tabla
 function renderTabla() {
   const tbody = document.getElementById("tablaProductos");
   tbody.innerHTML = "";
+
   let total = 0;
 
   productos.forEach((p, index) => {
     const subtotal = p.precio * p.cantidad;
     total += subtotal;
 
-    const fila = `
+    tbody.innerHTML += `
       <tr>
-        <td>${p.id}</td>
+        <td>${p.codigo}</td>
         <td>${p.nombre}</td>
         <td>${p.cantidad}</td>
         <td>${p.precio}</td>
@@ -68,48 +73,52 @@ function renderTabla() {
         <td><button class="btn btn-sm btn-danger" onclick="eliminarProducto(${index})">X</button></td>
       </tr>
     `;
-    tbody.innerHTML += fila;
   });
 
   document.getElementById("totalFactura").innerText = total.toFixed(0);
   document.getElementById("cobro_total").value = total.toFixed(0);
 }
 
+// Eliminar producto
 function eliminarProducto(index) {
   productos.splice(index, 1);
   renderTabla();
 }
 
-// Abrir modal cliente
+// Cliente
 function abrirModalCliente() {
   const modal = new bootstrap.Modal(document.getElementById("modalCliente"));
-  document.getElementById("busquedaCliente").value = "";
-  document.getElementById("resultadosCliente").innerHTML = "";
   modal.show();
+  document.getElementById("buscadorCliente").value = "";
+  document.getElementById("resultadoClientes").innerHTML = "";
+  document.getElementById("buscadorCliente").focus();
 }
 
-// Buscar clientes en tiempo real
-document.getElementById("busquedaCliente").addEventListener("input", async function () {
-  const texto = this.value.trim();
-  const contenedor = document.getElementById("resultadosCliente");
-  contenedor.innerHTML = "";
+document.getElementById("buscadorCliente").addEventListener("input", async function () {
+  const q = this.value.trim();
+  const lista = document.getElementById("resultadoClientes");
+  lista.innerHTML = "";
 
-  if (texto.length < 2) return;
+  if (q.length < 2) return;
 
   try {
-    const res = await fetch(`/facturacion/api/buscar_cliente?texto=${texto}`);
+    const res = await fetch(`/api/clientes/buscar?q=${encodeURIComponent(q)}`);
     const data = await res.json();
 
+    if (!data.length) {
+      lista.innerHTML = '<li class="list-group-item text-muted">Sin resultados</li>';
+      return;
+    }
+
     data.forEach(cliente => {
-      const div = document.createElement("div");
-      div.classList.add("cliente-item", "mb-1", "p-2", "border");
-      div.textContent = `${cliente.nombre} (${cliente.documento || "Sin doc"})`;
-      div.style.cursor = "pointer";
-      div.onclick = () => seleccionarCliente(cliente);
-      contenedor.appendChild(div);
+      const li = document.createElement("li");
+      li.className = "list-group-item list-group-item-action";
+      li.textContent = `${cliente.nombre} (${cliente.documento})`;
+      li.onclick = () => seleccionarCliente(cliente);
+      lista.appendChild(li);
     });
-  } catch {
-    contenedor.innerHTML = "<div>Error buscando clientes</div>";
+  } catch (err) {
+    console.error("Error al buscar cliente", err);
   }
 });
 
@@ -120,40 +129,47 @@ function seleccionarCliente(cliente) {
 }
 
 // Registrar nuevo cliente
-document.getElementById("formCliente").addEventListener("submit", async function (e) {
-  e.preventDefault();
-  const form = new FormData(this);
+async function registrarNuevoCliente() {
+  const nombre = document.getElementById("nuevoNombre").value.trim();
+  const documento = document.getElementById("nuevoDocumento").value.trim();
+  const telefono = document.getElementById("nuevoTelefono").value.trim();
+  const email = document.getElementById("nuevoEmail").value.trim();
+
+  if (!nombre) return alert("El nombre es obligatorio");
 
   try {
-    const res = await fetch("/facturacion/api/registrar_cliente", {
-      method: "POST",
-      body: form
+    const res = await fetch('/api/clientes/crear', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nombre, documento, telefono, email })
     });
+
     const data = await res.json();
-
-    if (data && data.id) {
-      seleccionarCliente(data);
+    if (data.success) {
+      seleccionarCliente(data.cliente);
     } else {
-      alert("Error al registrar cliente.");
+      alert("Error al registrar cliente: " + (data.error || "Error desconocido"));
     }
-  } catch {
-    alert("Error en conexión.");
+  } catch (err) {
+    alert("Error al registrar cliente.");
+    console.error(err);
   }
-});
+}
 
-// Abrir modal de cobro
+// Cobro
 function abrirModalCobro() {
-  const modal = new bootstrap.Modal(document.getElementById("modalCobro"));
   document.getElementById("cobro_pago").value = "";
   document.getElementById("cobro_descripcion").value = "";
+  const modal = new bootstrap.Modal(document.getElementById("modalCobro"));
   modal.show();
 }
 
-// Confirmar cobro
 document.getElementById("formCobro").addEventListener("submit", function (e) {
   e.preventDefault();
+
   const total = parseInt(document.getElementById("cobro_total").value) || 0;
   const pagado = parseInt(document.getElementById("cobro_pago").value) || 0;
+
   if (pagado < total) {
     alert("El monto pagado es menor al total.");
     return;
@@ -169,15 +185,28 @@ async function finalizarFactura() {
     return;
   }
 
+  const total = productos.reduce((acc, p) => acc + p.precio * p.cantidad, 0);
+  const impuesto = Math.round(total * 0.10); // Ajustable según lógica
+
+  const detalles = productos.map(p => ({
+    codigo: p.codigo,
+    cantidad: p.cantidad,
+    precio_unitario: p.precio,
+    subtotal: p.precio * p.cantidad
+  }));
+
+  const pagos = [{
+    monto: total,
+    metodo_pago_id: parseInt(document.getElementById("cobro_metodo").value),
+    descripcion: document.getElementById("cobro_descripcion").value || ''
+  }];
+
   const datos = {
     cliente_id: clienteSeleccionado ? clienteSeleccionado.id : null,
-    productos: productos.map(p => ({
-      id: p.id,
-      cantidad: p.cantidad,
-      precio: p.precio
-    })),
-    metodo_pago_id: parseInt(document.getElementById("cobro_metodo").value),
-    descripcion_pago: document.getElementById("cobro_descripcion").value
+    total,
+    impuesto,
+    detalles,
+    pagos
   };
 
   try {
@@ -188,13 +217,14 @@ async function finalizarFactura() {
     });
 
     const data = await res.json();
-    if (data && data.success) {
+    if (data.success) {
       window.location.href = `/facturacion/imprimir/${data.factura_id}`;
     } else {
-      alert("Error al guardar factura.");
+      alert("Error al guardar factura: " + (data.error || "Error desconocido"));
     }
-  } catch {
-    alert("Error al guardar.");
+  } catch (err) {
+    alert("Error al guardar factura.");
+    console.error(err);
   }
 }
 
