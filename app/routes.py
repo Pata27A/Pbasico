@@ -1,10 +1,13 @@
 import datetime
 import json
+from sqlite3 import IntegrityError
+import traceback
 from flask import Blueprint, jsonify, render_template, redirect, url_for, flash, request
 from flask_login import login_user, logout_user, login_required, current_user
 from app.forms import LoginForm, ProductoForm
 from app.models import Caja, Cliente, Cobranza, DetalleFactura, Factura, MetodoPago, MovimientoCaja, Producto, Usuario, Categoria
 from app import db
+from app.utils import generar_numero_factura
 
 main_bp = Blueprint('main_bp', __name__)
 
@@ -253,51 +256,92 @@ def facturacion():
                            clientes=clientes,
                            metodos_pago=metodos_pago)
 
-@main_bp.route('/factura/nueva', methods=['POST'])
+@main_bp.route('/facturacion/guardar', methods=['POST'])
 @login_required
 def guardar_factura():
     try:
-        cliente_id = request.form.get('cliente_id')
-        productos = request.form.getlist('producto_id[]')
-        cantidades = request.form.getlist('cantidad[]')
-        precios = request.form.getlist('precio[]')
-        pagos = json.loads(request.form.get('pagos_json', '[]'))
+        data = request.get_json()
+
+        cliente_id = data.get('cliente_id')
+        detalles = data.get('detalles', [])
+        pagos = data.get('pagos', [])
+        total_factura = data.get('total', 0)
+        impuesto = data.get('impuesto', 0)
+
+        # Generamos el número automáticamente
+        nuevo_numero = generar_numero_factura()
 
         nueva_factura = Factura(
-            numero='F-0001',  # Reemplazar por función generar_numero_factura()
-            fecha=datetime.datetime.now(),
+            numero=nuevo_numero,
+            fecha=datetime.datetime.utcnow(),
             cliente_id=cliente_id if cliente_id else None,
-            total=sum(float(cant) * float(precio) for cant, precio in zip(cantidades, precios)),
+            total=total_factura,
+            impuesto=impuesto,
             usuario_id=current_user.id
         )
         db.session.add(nueva_factura)
         db.session.flush()
 
-        for prod_id, cant, precio in zip(productos, cantidades, precios):
+        for item in detalles:
+            producto = db.session.query(Producto).with_for_update().filter_by(codigo=item['codigo']).first()
+            if not producto:
+                raise ValueError(f"Producto con código {item['codigo']} no encontrado")
+
+            cantidad = float(item['cantidad'])
+
+            if producto.stock_actual < cantidad:
+                raise ValueError(f"Stock insuficiente para el producto {producto.nombre}. Disponible: {producto.stock_actual}, requerido: {cantidad}")
+
+            producto.stock_actual -= cantidad
+
             detalle = DetalleFactura(
                 factura_id=nueva_factura.id,
-                producto_id=prod_id,
-                cantidad=float(cant),
-                precio_unitario=float(precio)
+                producto_id=producto.id,
+                cantidad=cantidad,
+                precio_unitario=float(item['precio_unitario']),
+                subtotal=float(item['subtotal'])
             )
             db.session.add(detalle)
 
         for pago in pagos:
             pago_db = Cobranza(
                 factura_id=nueva_factura.id,
-                metodo_pago_id=pago['metodo_pago_id'],
+                metodo_pago_id=int(pago['metodo_pago_id']),
                 monto=float(pago['monto']),
+                descripcion=pago.get('descripcion', ''),
                 usuario_id=current_user.id
             )
             db.session.add(pago_db)
 
+            # Registrar movimiento de caja solo si hay caja abierta
+            caja = obtener_caja_abierta()
+            if caja:
+                movimiento = MovimientoCaja(
+                    caja_id=caja.id,
+                    tipo='Ingreso',
+                    monto=pago_db.monto,
+                    descripcion=f'Cobro de factura {nueva_factura.numero}',
+                    usuario_id=current_user.id
+                )
+                db.session.add(movimiento)
+            else:
+                print("No hay caja abierta para registrar movimiento")
+
         db.session.commit()
-        flash('Factura guardada correctamente.', 'success')
+        return jsonify({'success': True, 'factura_id': nueva_factura.id})
+
+    except IntegrityError as e:
+        db.session.rollback()
+        print("Error de integridad:", e)
+        return jsonify({'success': False, 'error': 'Número de factura duplicado'})
     except Exception as e:
         db.session.rollback()
-        flash(f'Error al guardar la factura: {str(e)}', 'danger')
+        print("Error general:", e)
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)})
 
-    return redirect(url_for('main_bp.facturacion'))
+
+
 @main_bp.route('/facturacion/api/buscar_producto')
 @login_required
 def buscar_producto():
@@ -411,6 +455,13 @@ def registrar_cobranza(factura_id):
         return redirect(url_for('main_bp.listado_facturas'))
 
     return render_template('cobranzas/registrar.html', factura=factura, metodos=metodos)
+
+@main_bp.route('/api/metodos_pago', methods=['GET'])
+@login_required
+def obtener_metodos_pago():
+    metodos = MetodoPago.query.all()
+    resultado = [{'id': m.id, 'nombre': m.nombre} for m in metodos]
+    return jsonify(resultado)
 
 #------------Clientes------------------------
 # Buscar clientes por nombre o documento

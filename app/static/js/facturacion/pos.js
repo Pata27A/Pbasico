@@ -10,7 +10,6 @@ document.getElementById("buscadorProducto").addEventListener("keypress", async (
   const texto = e.target.value.trim();
   if (!texto) return;
 
-  // Si escribe +5, guarda la cantidad pendiente
   if (/^\+\d+$/.test(texto)) {
     cantidadPendiente = parseInt(texto.slice(1), 10);
     e.target.value = "";
@@ -36,7 +35,6 @@ document.getElementById("buscadorProducto").addEventListener("keypress", async (
   }
 });
 
-// Agregar producto a la lista
 function agregarProducto(producto, cantidad) {
   const existente = productos.find(p => p.codigo === producto.codigo);
   if (existente) {
@@ -52,7 +50,6 @@ function agregarProducto(producto, cantidad) {
   renderTabla();
 }
 
-// Renderizar tabla
 function renderTabla() {
   const tbody = document.getElementById("tablaProductos");
   tbody.innerHTML = "";
@@ -79,7 +76,6 @@ function renderTabla() {
   document.getElementById("cobro_total").value = total.toFixed(0);
 }
 
-// Eliminar producto
 function eliminarProducto(index) {
   productos.splice(index, 1);
   renderTabla();
@@ -160,8 +156,30 @@ async function registrarNuevoCliente() {
 function abrirModalCobro() {
   document.getElementById("cobro_pago").value = "";
   document.getElementById("cobro_descripcion").value = "";
+  document.getElementById("vuelto_monto").innerText = "0";
+  cargarMetodosPago();
+
+  // 🚩 Este bloque es lo que te estaba faltando:
+  const total = productos.reduce((acc, p) => acc + p.precio * p.cantidad, 0);
+  document.getElementById("total_a_cobrar").innerText = total.toFixed(0);
+  document.getElementById("cobro_total").value = total.toFixed(0); // mantenemos para el cálculo posterior
+  document.getElementById("cobro_pago").value = total.toFixed(0);  // opcional: precargamos el monto
+
+  calcularVuelto(); // actualizamos el vuelto inicial
+
   const modal = new bootstrap.Modal(document.getElementById("modalCobro"));
   modal.show();
+}
+
+
+document.getElementById("cobro_pago").addEventListener("input", calcularVuelto);
+
+function calcularVuelto() {
+  let total = parseFloat(document.getElementById('cobro_total').value) || 0;
+  let pagado = parseFloat(document.getElementById('cobro_pago').value) || 0;
+  let vuelto = pagado - total;
+
+  document.getElementById('vuelto_monto').innerText = vuelto >= 0 ? vuelto.toFixed(0) : "0";
 }
 
 document.getElementById("formCobro").addEventListener("submit", function (e) {
@@ -175,18 +193,18 @@ document.getElementById("formCobro").addEventListener("submit", function (e) {
     return;
   }
 
-  finalizarFactura();
+  finalizarFactura(pagado);
 });
 
 // Finalizar factura
-async function finalizarFactura() {
+async function finalizarFactura(montoPagado) {
   if (productos.length === 0) {
     alert("Agrega al menos un producto.");
     return;
   }
 
   const total = productos.reduce((acc, p) => acc + p.precio * p.cantidad, 0);
-  const impuesto = Math.round(total * 0.10); // Ajustable según lógica
+  const impuesto = Math.round(total * 0.10);
 
   const detalles = productos.map(p => ({
     codigo: p.codigo,
@@ -196,7 +214,7 @@ async function finalizarFactura() {
   }));
 
   const pagos = [{
-    monto: total,
+    monto: montoPagado,
     metodo_pago_id: parseInt(document.getElementById("cobro_metodo").value),
     descripcion: document.getElementById("cobro_descripcion").value || ''
   }];
@@ -228,7 +246,6 @@ async function finalizarFactura() {
   }
 }
 
-// Reiniciar factura
 function reiniciarFactura() {
   productos = [];
   clienteSeleccionado = null;
@@ -246,3 +263,22 @@ document.addEventListener("keydown", (e) => {
     abrirModalCobro();
   }
 });
+
+async function cargarMetodosPago() {
+  try {
+    const res = await fetch('/api/metodos_pago');
+    const data = await res.json();
+
+    const select = document.getElementById("cobro_metodo");
+    select.innerHTML = '';
+
+    data.forEach(metodo => {
+      const option = document.createElement('option');
+      option.value = metodo.id;
+      option.textContent = metodo.nombre;
+      select.appendChild(option);
+    });
+  } catch (err) {
+    console.error("Error al cargar métodos de pago", err);
+  }
+}
