@@ -4,7 +4,10 @@
 <h2>Apertura de Caja</h2>
 
 {% if caja and caja.abierta %}
-    <div class="alert alert-info">Ya hay una caja abierta hoy.</div>
+    <div class="alert alert-info">
+        Ya hay una caja abierta hoy. <br>
+        Monto de apertura: <strong>{{ caja.monto_apertura | guaranies }}</strong>
+    </div>
 {% else %}
     <form method="post">
         <div class="mb-3">

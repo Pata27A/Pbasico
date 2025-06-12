@@ -1,0 +1,56 @@
+{% extends "base_menu.html" %}
+
+{% block content %}
+<div class="container mt-4">
+  <h3>Reporte de Ganancia Diaria</h3>
+
+  <div class="row mb-3">
+    <div class="col-md-3">
+      <label for="fecha_desde">Desde:</label>
+      <input type="date" id="fecha_desde" class="form-control">
+    </div>
+    <div class="col-md-3">
+      <label for="fecha_hasta">Hasta:</label>
+      <input type="date" id="fecha_hasta" class="form-control">
+    </div>
+    <div class="col-md-3 d-flex align-items-end">
+      <button class="btn btn-primary w-100" id="btnConsultar">Consultar</button>
+    </div>
+    <div class="col-md-3 d-flex align-items-end">
+      <button class="btn btn-success w-100" id="btnExportar">Exportar CSV</button>
+    </div>
+  </div>
+
+  <div class="mb-3">
+    <button class="btn btn-outline-secondary me-2 filtro" data-filtro="hoy">Hoy</button>
+    <button class="btn btn-outline-secondary me-2 filtro" data-filtro="semana">Esta semana</button>
+    <button class="btn btn-outline-secondary me-2 filtro" data-filtro="mes">Este mes</button>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-bordered">
+      <thead class="table-dark">
+        <tr>
+          <th>Ingresos</th>
+          <th>Egresos</th>
+          <th>Ganancia Neta</th>
+        </tr>
+      </thead>
+      <tbody id="tablaReporte">
+        <tr><td colspan="3" class="text-center">No hay datos</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="mt-4">
+    <canvas id="graficoGanancia"></canvas>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{{ url_for('static', filename='js/reportes/reportes.js') }}"></script>
+{% endblock %}
+
+

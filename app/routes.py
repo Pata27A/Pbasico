@@ -4,6 +4,7 @@ from sqlite3 import IntegrityError
 import traceback
 from flask import Blueprint, jsonify, render_template, redirect, url_for, flash, request
 from flask_login import login_user, logout_user, login_required, current_user
+from sqlalchemy import func
 from app.forms import LoginForm, ProductoForm
 from app.models import Caja, Cliente, Cobranza, DetalleFactura, Factura, MetodoPago, MovimientoCaja, Producto, Usuario, Categoria
 from app import db
@@ -508,11 +509,56 @@ def crear_cliente():
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)})
 
-#-------------Ganancias-----------------
-@main_bp.route('/ganancias')
+# ------------- Ganancias -----------------
+
+# Mostrar el HTML del reporte
+@main_bp.route('/reportes/ganancia')
 @login_required
-def ganancias():
-    return "Aquí va el Control de Ganancia Diaria"
+def mostrar_reporte():
+    return render_template('reportes/reportes.html')
+
+# Ruta para devolver los datos JSON de ganancias
+@main_bp.route('/reportes/ganancia/datos', methods=['GET'])
+@login_required
+def reporte_ganancia():
+    try:
+        desde = request.args.get('desde')
+        hasta = request.args.get('hasta')
+
+        if not desde or not hasta:
+            return jsonify({'success': False, 'error': 'Debe especificar el rango de fechas'})
+
+        # Parseo seguro de fechas
+        try:
+            desde_dt = datetime.datetime.strptime(desde, "%Y-%m-%d")
+            hasta_dt = datetime.datetime.strptime(hasta, "%Y-%m-%d") + datetime.timedelta(days=1)
+        except ValueError:
+            return jsonify({'success': False, 'error': 'Formato de fecha inválido. Use YYYY-MM-DD.'})
+
+        ingresos = db.session.query(func.coalesce(func.sum(MovimientoCaja.monto), 0))\
+            .filter(func.lower(MovimientoCaja.tipo) == 'ingreso')\
+            .filter(MovimientoCaja.fecha >= desde_dt)\
+            .filter(MovimientoCaja.fecha < hasta_dt).scalar()
+
+        egresos = db.session.query(func.coalesce(func.sum(MovimientoCaja.monto), 0))\
+            .filter(func.lower(MovimientoCaja.tipo) == 'egreso')\
+            .filter(MovimientoCaja.fecha >= desde_dt)\
+            .filter(MovimientoCaja.fecha < hasta_dt).scalar()
+
+        ganancia = ingresos - egresos
+
+        return jsonify({
+            'success': True,
+            'ingresos': ingresos,
+            'egresos': egresos,
+            'ganancia': ganancia
+        })
+
+    except Exception as e:
+        print("Error en reporte_ganancia:", e)
+        return jsonify({'success': False, 'error': str(e)})
+
+#-----------Informes----------------------
 
 @main_bp.route('/informes')
 @login_required

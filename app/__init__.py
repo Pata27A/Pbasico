@@ -12,6 +12,17 @@ login_manager.login_view = 'login'  # Redirige aquí si no está logueado
 bcrypt = Bcrypt()  # <-- Instancia Bcrypt
 
 
+
+def formato_guaranies(value):
+    try:
+        # Primero convierte a int para evitar decimales
+        entero = int(float(value))
+        # Formateo con separadores de miles usando la función nativa de python, pero con punto
+        return f"{entero:,}".replace(",", ".")
+    except (ValueError, TypeError):
+        return value  # Si no es un número válido, retorna el valor original
+
+
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
@@ -24,6 +35,9 @@ def create_app():
     from app.routes import main_bp
     app.register_blueprint(main_bp)
 
+    # Agregar filtro personalizado Jinja2
+    app.jinja_env.filters['guaranies'] = formato_guaranies
+
     # Importar aquí para evitar import circular
     from app.models import Usuario
 
@@ -32,3 +46,8 @@ def create_app():
         return Usuario.query.get(int(user_id))
 
     return app
+
+
+
+
+

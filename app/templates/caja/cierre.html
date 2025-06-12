@@ -5,9 +5,9 @@
 
 {% if caja %}
     <p><strong>Fecha:</strong> {{ caja.fecha }}</p>
-    <p><strong>Monto Apertura:</strong> {{ caja.monto_apertura }}</p>
+    <p><strong>Monto Apertura:</strong> {{ caja.monto_apertura | guaranies }}</p>
     <form method="post">
-        <p><strong>Saldo Final Calculado:</strong> {{ calcular_saldo_cierre(caja) }}</p>
+        <p><strong>Saldo Final Calculado:</strong> {{ calcular_saldo_cierre(caja) | guaranies }}</p>
         <button class="btn btn-danger">Cerrar Caja</button>
     </form>
 {% else %}

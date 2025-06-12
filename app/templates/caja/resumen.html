@@ -5,9 +5,9 @@
 
 {% if caja %}
     <p><strong>Fecha:</strong> {{ caja.fecha }}</p>
-    <p><strong>Monto Apertura:</strong> {{ caja.monto_apertura }}</p>
+    <p><strong>Monto Apertura:</strong> {{ caja.monto_apertura | guaranies }}</p>
     <p><strong>Estado:</strong> {{ 'Abierta' if caja.abierta else 'Cerrada' }}</p>
-    <p><strong>Saldo Final:</strong> {{ saldo_final }}</p>
+    <p><strong>Saldo Final:</strong> {{ saldo_final | guaranies }}</p>
 
     <h4 class="mt-4">Movimientos</h4>
     <table class="table table-striped">
@@ -25,7 +25,7 @@
             <tr>
                 <td>{{ m.fecha }}</td>
                 <td>{{ m.tipo }}</td>
-                <td>{{ m.monto }}</td>
+                <td>{{ m.monto | guaranies }}</td>
                 <td>{{ m.descripcion }}</td>
                 <td>
                     {% if caja.abierta %}

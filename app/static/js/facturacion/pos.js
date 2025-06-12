@@ -2,6 +2,11 @@ let productos = [];
 let clienteSeleccionado = null;
 let cantidadPendiente = null;
 
+// Función para formatear números con puntos de miles (formato guaraní)
+function formatearGuaranies(numero) {
+  return numero.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+}
+
 // Buscar producto por código o nombre
 document.getElementById("buscadorProducto").addEventListener("keypress", async (e) => {
   if (e.key !== "Enter") return;
@@ -65,14 +70,15 @@ function renderTabla() {
         <td>${p.codigo}</td>
         <td>${p.nombre}</td>
         <td>${p.cantidad}</td>
-        <td>${p.precio}</td>
-        <td>${subtotal.toFixed(0)}</td>
+        <td>${formatearGuaranies(p.precio.toFixed(0))}</td>  <!-- <<<<< FORMATEO GUARANÍES -->
+        <td>${formatearGuaranies(subtotal.toFixed(0))}</td> <!-- <<<<< FORMATEO GUARANÍES -->
         <td><button class="btn btn-sm btn-danger" onclick="eliminarProducto(${index})">X</button></td>
       </tr>
     `;
   });
 
-  document.getElementById("totalFactura").innerText = total.toFixed(0);
+  document.getElementById("totalFactura").innerText = formatearGuaranies(total.toFixed(0)); // <<<<< FORMATEO GUARANÍES
+  document.getElementById("total_a_cobrar").innerText = formatearGuaranies(total.toFixed(0)); // <<<<< FORMATEO GUARANÍES
   document.getElementById("cobro_total").value = total.toFixed(0);
 }
 
@@ -159,10 +165,11 @@ function abrirModalCobro() {
   document.getElementById("vuelto_monto").innerText = "0";
   cargarMetodosPago();
 
-  // 🚩 Este bloque es lo que te estaba faltando:
+  // Este bloque ya no hace falta calcular total acá porque se hace en renderTabla y se actualiza total_a_cobrar
+  // Solo aseguramos que el pago esté precargado con el total:
   const total = productos.reduce((acc, p) => acc + p.precio * p.cantidad, 0);
-  document.getElementById("total_a_cobrar").innerText = total.toFixed(0);
-  document.getElementById("cobro_total").value = total.toFixed(0); // mantenemos para el cálculo posterior
+  document.getElementById("total_a_cobrar").innerText = formatearGuaranies(total.toFixed(0)); // <<<<< FORMATEO GUARANÍES
+  document.getElementById("cobro_total").value = total.toFixed(0);
   document.getElementById("cobro_pago").value = total.toFixed(0);  // opcional: precargamos el monto
 
   calcularVuelto(); // actualizamos el vuelto inicial
@@ -171,7 +178,6 @@ function abrirModalCobro() {
   modal.show();
 }
 
-
 document.getElementById("cobro_pago").addEventListener("input", calcularVuelto);
 
 function calcularVuelto() {
@@ -179,7 +185,7 @@ function calcularVuelto() {
   let pagado = parseFloat(document.getElementById('cobro_pago').value) || 0;
   let vuelto = pagado - total;
 
-  document.getElementById('vuelto_monto').innerText = vuelto >= 0 ? vuelto.toFixed(0) : "0";
+  document.getElementById('vuelto_monto').innerText = vuelto >= 0 ? formatearGuaranies(vuelto.toFixed(0)) : "0"; // <<<<< FORMATEO GUARANÍES
 }
 
 document.getElementById("formCobro").addEventListener("submit", function (e) {

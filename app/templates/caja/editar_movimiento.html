@@ -3,6 +3,8 @@
 {% block content %}
 <h2>Editar Movimiento</h2>
 
+<p>Monto actual: {{ movimiento.monto | guaranies }}</p>
+
 <form method="post">
     <div class="mb-3">
         <label>Tipo</label>

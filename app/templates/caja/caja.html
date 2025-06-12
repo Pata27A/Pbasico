@@ -10,7 +10,7 @@
     <button type="submit">Abrir Caja</button>
 </form>
 {% else %}
-<p><strong>Saldo inicial:</strong> {{ caja.saldo_inicial }}</p>
+<p><strong>Saldo inicial:</strong> {{ caja.saldo_inicial|guaranies }}</p>
 <p><strong>Estado:</strong> {{ caja.estado }}</p>
 <p><strong>Hora cierre:</strong> {{ caja.hora_cierre if caja.hora_cierre else 'Caja abierta' }}</p>
 
@@ -52,7 +52,7 @@
         <tr>
             <td>{{ m.fecha_hora.strftime('%Y-%m-%d %H:%M:%S') }}</td>
             <td>{{ m.tipo }}</td>
-            <td>{{ m.monto }}</td>
+            <td>{{ m.monto|guaranies }}</td>
             <td>{{ m.descripcion }}</td>
             <td>
                 <a href="{{ url_for('main_bp.editar_movimiento', id=m.id) }}">Editar</a>
@@ -68,7 +68,7 @@
 </table>
 
 <h3>Resumen</h3>
-<p>Saldo final del día: <strong>{{ saldo_final }}</strong></p>
+<p>Saldo final del día: <strong>{{ saldo_final|guaranies }}</strong></p>
 
 {% endif %}
 {% endblock %}
