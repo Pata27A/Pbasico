@@ -131,6 +131,7 @@ class Factura(db.Model):
     detalles = db.relationship('DetalleFactura', backref='factura', lazy=True)
     cobranzas = db.relationship('Cobranza', backref='factura', lazy=True)
 
+
 class DetalleFactura(db.Model):
     __tablename__ = 'detalle_factura'
     id = db.Column(db.Integer, primary_key=True)
@@ -193,3 +194,18 @@ class Bitacora(db.Model):
     fecha = db.Column(db.DateTime, default=datetime.utcnow)
     detalles = db.Column(db.Text)  # detalles opcionales (json, texto, etc)
 
+#----------------Datos de la Empresa-----------------------
+class Empresa(db.Model):
+    __tablename__ = 'empresa'
+    id = db.Column(db.Integer, primary_key=True)
+    nombre = db.Column(db.String(150), nullable=False)
+    ruc = db.Column(db.String(20), nullable=False)
+    direccion = db.Column(db.String(150), nullable=False)
+    ciudad = db.Column(db.String(100), nullable=False)
+    telefono = db.Column(db.String(50), nullable=False)
+    
+    timbrado_numero = db.Column(db.String(20), nullable=False)
+    timbrado_vigencia_desde = db.Column(db.Date, nullable=False)
+    timbrado_vigencia_hasta = db.Column(db.Date, nullable=False)
+
+    fecha_creacion = db.Column(db.DateTime, default=datetime.utcnow)

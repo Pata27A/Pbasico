@@ -1,35 +1,108 @@
 {% extends 'base_menu.html' %}
-{% block title %}Factura {{ factura.numero }}{% endblock %}
+
 {% block content %}
+<style>
+    body {
+        font-family: monospace;
+        font-size: 12px;
+        width: 280px;
+        margin: auto;
+    }
+    .centrado {
+        text-align: center;
+    }
+    .separador {
+        border-top: 1px dashed black;
+        margin: 5px 0;
+    }
+    table {
+        width: 100%;
+    }
+    .right {
+        text-align: right;
+    }
+</style>
 
-<div class="container mt-3">
-  <h2>Factura {{ factura.numero }}</h2>
-  <p><strong>Fecha:</strong> {{ factura.fecha.strftime('%d/%m/%Y %H:%M') }}</p>
-  <p><strong>Cliente:</strong> {{ factura.cliente.nombre if factura.cliente else 'Consumidor Final' }}</p>
+<div class="centrado">
+    <h3>{{ empresa.nombre }}</h3>
+    <p>RUC: {{ empresa.ruc }}</p>
+    <p>{{ empresa.ciudad }}</p>
+    <p>Tel: {{ empresa.telefono }}</p>
+</div>
 
-  <table class="table table-bordered table-sm mt-3">
+<div class="separador"></div>
+
+<p>------- IVA INCLUIDO -------</p>
+<p>Fecha: {{ factura.fecha.strftime('%Y-%m-%d') }} Hora: {{ factura.fecha.strftime('%H:%M') }}</p>
+<p>Cajero/a: {{ factura.usuario.username }}</p>
+
+<p>Timbrado Nro: {{ empresa.timbrado_numero }}</p>
+<p>Vigencia Desde: {{ empresa.timbrado_vigencia_desde.strftime('%Y-%m-%d') if empresa.timbrado_vigencia_desde else '' }} 
+Hasta: {{ empresa.timbrado_vigencia_hasta.strftime('%Y-%m-%d') if empresa.timbrado_vigencia_hasta else '' }}</p>
+
+<p>Factura Contado N°: {{ factura.numero }}</p>
+
+<div class="separador"></div>
+
+<table>
     <thead>
-      <tr><th>Producto</th><th>Cantidad</th><th>Precio</th><th>Subtotal</th></tr>
+        <tr>
+            <th>Producto</th>
+            <th class="right">Cant.</th>
+            <th class="right">Total</th>
+        </tr>
     </thead>
     <tbody>
-      {% for item in factura.detalles %}
-      <tr>
-        <td>{{ item.producto.nombre }}</td>
-        <td>{{ item.cantidad }}</td>
-        <td>{{ item.precio_unitario }}</td>
-        <td>{{ item.subtotal }}</td>
-      </tr>
-      {% endfor %}
+        {% for detalle in factura.detalles %}
+        <tr>
+            <td>{{ detalle.producto.nombre }}</td>
+            <td class="right">{{ detalle.cantidad }}</td>
+            <td class="right">{{ "{:,.0f}".format(detalle.subtotal) }}</td>
+        </tr>
+        {% endfor %}
     </tbody>
-    <tfoot>
-      <tr>
-        <td colspan="3" class="text-end"><strong>Total:</strong></td>
-        <td><strong>{{ factura.total }}</strong></td>
-      </tr>
-    </tfoot>
-  </table>
+</table>
 
-  <button class="btn btn-primary mt-3" onclick="window.print()">Imprimir</button>
+<div class="separador"></div>
+
+{% set gravadas_10 = factura.total %}
+{% set iva_10 = gravadas_10 / 11 %}
+{% set subtotal = factura.total %}
+{% set total_pagado = factura.cobranzas | sum(attribute='monto') %}
+{% set vuelto = total_pagado - factura.total %}
+
+<p>Sub Total.............Gs.: {{ "{:,.0f}".format(subtotal) }}</p>
+<p>Exentos...............Gs.: 0</p>
+<p>Gravadas 10%..........Gs.: {{ "{:,.0f}".format(gravadas_10) }}</p>
+<p>TOTAL: Gs. {{ "{:,.0f}".format(factura.total) }}</p>
+<p>Pagado: Gs. {{ "{:,.0f}".format(total_pagado) }}</p>
+<p>Vuelto: Gs. {{ "{:,.0f}".format(vuelto if vuelto >= 0 else 0) }}</p>
+
+<p>I.V.A. 10% Gs.: {{ "{:,.0f}".format(iva_10) }}</p>
+
+<div class="separador"></div>
+
+<p>Forma(s) de Pago(s)</p>
+{% for cobranza in factura.cobranzas %}
+    <p>- {{ cobranza.metodo_pago.nombre }}: {{ "{:,.0f}".format(cobranza.monto) }} Gs.</p>
+{% endfor %}
+
+<div class="separador"></div>
+
+{% if factura.cliente %}
+    <p>Nombre o Razón Social: {{ factura.cliente.nombre }}</p>
+    <p>RUC/C.I.: {{ factura.cliente.documento }}</p>
+{% else %}
+    <p>Nombre o Razón Social:</p>
+    <p>RUC/C.I.:</p>
+{% endif %}
+
+<div class="separador"></div>
+
+<div class="centrado">
+    <p>¡Gracias por su compra!</p>
+    <p>Original: Cliente</p>
+    <p>Duplicado: Archivo Tributario</p>
 </div>
 
 {% endblock %}

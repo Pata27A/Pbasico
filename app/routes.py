@@ -6,7 +6,7 @@ from flask import Blueprint, jsonify, render_template, redirect, url_for, flash,
 from flask_login import login_user, logout_user, login_required, current_user
 from sqlalchemy import func
 from app.forms import LoginForm, ProductoForm
-from app.models import Caja, Cliente, Cobranza, DetalleFactura, Factura, MetodoPago, MovimientoCaja, Producto, Usuario, Categoria
+from app.models import Caja, Cliente, Cobranza, DetalleFactura, Empresa, Factura, MetodoPago, MovimientoCaja, Producto, Usuario, Categoria
 from app import db
 from app.utils import generar_numero_factura
 
@@ -371,7 +371,12 @@ def buscar_producto():
 @login_required
 def imprimir_factura(id):
     factura = Factura.query.get_or_404(id)
-    return render_template('facturacion/imprimir.html', factura=factura)
+
+    # Suponemos que siempre hay un único registro de empresa
+    empresa = Empresa.query.first()
+
+    return render_template('facturacion/imprimir.html', factura=factura, empresa=empresa)
+
 
 @main_bp.route('/facturacion/listado')
 @login_required
@@ -557,6 +562,39 @@ def reporte_ganancia():
     except Exception as e:
         print("Error en reporte_ganancia:", e)
         return jsonify({'success': False, 'error': str(e)})
+    
+
+@main_bp.route('/empresa', methods=['GET', 'POST'])
+@login_required
+def configurar_empresa():
+    empresa = Empresa.query.first()
+
+    if request.method == 'POST':
+        if not empresa:
+            empresa = Empresa()
+            db.session.add(empresa)
+
+        empresa.nombre = request.form['nombre']
+        empresa.ruc = request.form['ruc']
+        empresa.ciudad = request.form['ciudad']
+        empresa.direccion = request.form['direccion']
+        empresa.telefono = request.form['telefono']
+        empresa.timbrado_numero = request.form['timbrado_numero']
+
+        from datetime import datetime
+
+        # Conversión de string a date
+        vigencia_desde_str = request.form['timbrado_vigencia_desde']
+        vigencia_hasta_str = request.form['timbrado_vigencia_hasta']
+
+        empresa.timbrado_vigencia_desde = datetime.strptime(vigencia_desde_str, '%Y-%m-%d').date() if vigencia_desde_str else None
+        empresa.timbrado_vigencia_hasta = datetime.strptime(vigencia_hasta_str, '%Y-%m-%d').date() if vigencia_hasta_str else None
+
+        db.session.commit()
+        flash('Datos de la empresa guardados correctamente.', 'success')
+        return redirect(url_for('main_bp.configurar_empresa'))
+
+    return render_template('empresa/configuracion.html', empresa=empresa)
 
 #-----------Informes----------------------
 

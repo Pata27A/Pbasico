@@ -1,0 +1,55 @@
+{% extends 'base_menu.html' %}
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/empresa.css') }}">
+
+<h2>Configuración de Empresa</h2>
+
+<form method="post" class="empresa-form">
+    <div>
+        <label for="nombre">Nombre:</label>
+        <input type="text" id="nombre" name="nombre" value="{{ empresa.nombre if empresa else '' }}" required>
+    </div>
+
+    <div>
+        <label for="ruc">RUC:</label>
+        <input type="text" id="ruc" name="ruc" value="{{ empresa.ruc if empresa else '' }}" required>
+    </div>
+
+    <div>
+        <label for="ciudad">Ciudad:</label>
+        <input type="text" id="ciudad" name="ciudad" value="{{ empresa.ciudad if empresa else '' }}">
+    </div>
+
+    <div>
+        <label for="direccion">Dirección:</label>
+        <input type="text" id="direccion" name="direccion" value="{{ empresa.direccion if empresa else '' }}">
+    </div>
+
+    <div>
+        <label for="telefono">Teléfono:</label>
+        <input type="text" id="telefono" name="telefono" value="{{ empresa.telefono if empresa else '' }}">
+    </div>
+
+    <div>
+        <label for="timbrado_numero">Timbrado N°:</label>
+        <input type="text" id="timbrado_numero" name="timbrado_numero" value="{{ empresa.timbrado_numero if empresa else '' }}">
+    </div>
+
+    <div>
+        <label for="timbrado_vigencia_desde">Vigencia Desde:</label>
+        <input type="date" id="timbrado_vigencia_desde" name="timbrado_vigencia_desde"
+        value="{{ empresa.timbrado_vigencia_desde.strftime('%Y-%m-%d') if empresa and empresa.timbrado_vigencia_desde else '' }}">
+    </div>
+
+    <div>
+        <label for="timbrado_vigencia_hasta">Vigencia Hasta:</label>
+        <input type="date" id="timbrado_vigencia_hasta" name="timbrado_vigencia_hasta"
+        value="{{ empresa.timbrado_vigencia_hasta.strftime('%Y-%m-%d') if empresa and empresa.timbrado_vigencia_hasta else '' }}">
+    </div>
+
+    <div style="margin-top: 10px;">
+        <button type="submit">Guardar</button>
+    </div>
+</form>
+
+{% endblock %}

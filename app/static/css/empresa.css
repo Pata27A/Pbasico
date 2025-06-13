@@ -1,0 +1,70 @@
+/* formulario.css */
+
+.empresa-form {
+  max-width: 480px;
+  margin: 20px auto;
+  background: #f9fbfd;
+  padding: 25px 30px;
+  border-radius: 8px;
+  box-shadow: 0 0 12px rgba(0,0,0,0.1);
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.empresa-form h2 {
+  text-align: center;
+  color: #0077cc;
+  margin-bottom: 20px;
+  font-weight: 600;
+}
+
+.empresa-form div {
+  margin-bottom: 15px;
+  display: flex;
+  flex-direction: column;
+}
+
+.empresa-form label {
+  margin-bottom: 6px;
+  font-weight: 600;
+  color: #333;
+  font-size: 0.95rem;
+}
+
+.empresa-form input[type="text"],
+.empresa-form input[type="date"] {
+  padding: 10px 12px;
+  font-size: 1rem;
+  border: 1.8px solid #ccc;
+  border-radius: 5px;
+  transition: border-color 0.25s ease;
+}
+
+.empresa-form input[type="text"]:focus,
+.empresa-form input[type="date"]:focus {
+  outline: none;
+  border-color: #0077cc;
+  box-shadow: 0 0 6px #0077ccaa;
+}
+
+.empresa-form button {
+  width: 100%;
+  background-color: #0077cc;
+  border: none;
+  color: white;
+  font-weight: 700;
+  padding: 12px 0;
+  font-size: 1.1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.empresa-form button:hover {
+  background-color: #005fa3;
+}
+
+@media (max-width: 500px) {
+  .empresa-form {
+    padding: 20px 15px;
+  }
+}
