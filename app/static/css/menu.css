@@ -4,56 +4,68 @@
     top: 0;
     left: 0;
     height: 100vh;
-    width: 220px;
-    background-color: #343a40; /* gris oscuro */
+    width: 240px;
+    background: #1e293b; /* Azul oscuro moderno */
     display: flex;
     flex-direction: column;
-    padding-top: 20px;
-    box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+    padding-top: 30px;
+    box-shadow: 4px 0 10px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s ease;
 }
 
 .sidebar h3 {
-    color: #fff;
+    color: #f1f5f9; 
     text-align: center;
-    margin-bottom: 30px;
+    margin-bottom: 40px;
     font-weight: 700;
+    font-size: 1.6rem;
+    letter-spacing: 0.5px;
 }
 
 .sidebar a {
-    color: #adb5bd; /* gris claro */
-    padding: 12px 20px;
+    color: #cbd5e1;
+    padding: 14px 24px;
     text-decoration: none;
     font-weight: 500;
-    transition: background-color 0.3s, color 0.3s;
+    font-size: 1rem;
+    transition: all 0.3s ease;
     border-left: 4px solid transparent;
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
 .sidebar a:hover {
-    background-color: #495057; /* un poco más claro */
-    color: #fff;
-    border-left: 4px solid #0d6efd; /* azul bootstrap */
+    background-color: #334155; 
+    color: #ffffff;
+    border-left: 4px solid #3b82f6; /* Azul vibrante moderno */
+    padding-left: 28px;
 }
 
 .sidebar a.mt-4 {
-    margin-top: auto; /* separa el "Cerrar sesión" abajo */
+    margin-top: auto;
     border-left: none;
 }
 
 /* Contenido principal */
 .content {
-    margin-left: 220px; /* dejar espacio para la sidebar */
-    padding: 40px 30px;
-    background-color: #f8f9fa; /* gris muy claro */
+    margin-left: 240px;
+    padding: 50px 40px;
+    background-color: #f8fafc;
     min-height: 100vh;
     box-sizing: border-box;
+    transition: margin-left 0.3s ease;
 }
 
 .content h1 {
     font-weight: 700;
-    color: #212529;
+    color: #0f172a;
+    font-size: 2rem;
+    margin-bottom: 20px;
 }
 
 .content p {
     font-size: 1.1rem;
-    color: #495057;
+    color: #475569;
+    line-height: 1.6;
 }

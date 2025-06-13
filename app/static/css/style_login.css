@@ -98,3 +98,20 @@ button:hover {
     color: #664d03;
     border: 1px solid #ffecb5;
 }
+.form-logo-container {
+    display: flex;
+    flex-direction: row-reverse;  /* invierte el orden */
+    justify-content: center;
+    align-items: center;
+    gap: 40px;
+}
+
+
+.logo-container {
+    text-align: center;
+}
+
+.logo {
+    width: 150px;
+    height: auto;
+}

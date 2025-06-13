@@ -4,23 +4,30 @@
     <meta charset="UTF-8">
     <title>Login</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style_login.css') }}">
-
 </head>
 <body>
-    <h2>Ingresar al sistema</h2>
-    <form method="POST">
-    {{ form.hidden_tag() }}
-    <div>
-        <label for="{{ form.nombre_usuario.id }}">{{ form.nombre_usuario.label }}</label>
-        {{ form.nombre_usuario(id=form.nombre_usuario.id) }}
+
+    <div class="form-logo-container">
+        <form method="POST">
+            <h2>Ingresar al sistema</h2>
+
+            {{ form.hidden_tag() }}
+            <div>
+                <label for="{{ form.nombre_usuario.id }}">{{ form.nombre_usuario.label }}</label>
+                {{ form.nombre_usuario(id=form.nombre_usuario.id) }}
+            </div>
+            <div>
+                <label for="{{ form.password.id }}">{{ form.password.label }}</label>
+                {{ form.password(id=form.password.id) }}
+            </div>
+            <div>
+                {{ form.submit() }}
+            </div>
+        </form>
+
+        <div class="logo-container">
+            <img src="{{ url_for('static', filename='img/Logo.png') }}" alt="Logo del sistema" class="logo">
+        </div>
     </div>
-    <div>
-        <label for="{{ form.password.id }}">{{ form.password.label }}</label>
-        {{ form.password(id=form.password.id) }}
-    </div>
-    <div>
-        {{ form.submit() }}
-    </div>
-</form>
 </body>
 </html>
