@@ -1,0 +1,77 @@
+{% extends 'base_menu.html' %}
+{% block title %}Reporte de Caja{% endblock %}
+
+{% block content %}
+<h2>Reporte de Caja</h2>
+
+<div class="mb-3">
+    <label for="fecha" class="form-label">Seleccionar Fecha:</label>
+    <input type="date" id="fecha" class="form-control" />
+</div>
+
+<div class="mb-3 d-flex gap-2">
+    <button class="btn btn-primary flex-grow-1" onclick="buscarCaja()">Buscar</button>
+
+    <form action="{{ url_for('main_bp.exportar_reporte_caja_pdf') }}" method="get" target="_blank" id="formExportar" style="display: none; flex-grow: 1;">
+        <input type="hidden" name="fecha" id="fechaExportar" value="{{ caja.fecha if caja else '' }}">
+        <button type="submit" class="btn btn-danger w-100">Exportar a PDF</button>
+    </form>
+</div>
+
+
+<div id="resultado" style="display: {{ 'block' if caja else 'none' }};">
+    <p><strong>Fecha:</strong> <span id="cajaFecha">{{ caja.fecha if caja else '' }}</span></p>
+    <p><strong>Monto Apertura:</strong> <span id="cajaApertura">{{ caja.monto_apertura if caja else '' }}</span></p>
+    <p><strong>Saldo Final:</strong> <span id="cajaSaldo">{{ saldo_final if caja else '' }}</span></p>
+
+    <h4>Movimientos</h4>
+    <table class="table table-bordered" id="tablaMovimientos">
+        <thead>
+            <tr>
+                <th>Fecha</th>
+                <th>Tipo</th>
+                <th>Monto</th>
+                <th>Descripción</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% if movimientos %}
+                {% for m in movimientos %}
+                <tr>
+                    <td>{{ m.fecha }}</td>
+                    <td>{{ m.tipo }}</td>
+                    <td>{{ m.monto }}</td>
+                    <td>{{ m.descripcion }}</td>
+                </tr>
+                {% endfor %}
+            {% endif %}
+        </tbody>
+    </table>
+</div>
+
+<div id="sinCaja" style="display: {{ 'none' if caja else 'block' }};">
+    <p class="text-danger">No hay datos de caja para la fecha seleccionada.</p>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/reportes/reporte_caja.js') }}"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+// Para que el formulario de exportar use la fecha actual (al cargar la página o al buscar)
+document.addEventListener('DOMContentLoaded', () => {
+    const fechaInput = document.getElementById('fecha');
+    const fechaExportar = document.getElementById('fechaExportar');
+    const formExportar = document.getElementById('formExportar');
+
+    if(fechaExportar.value) {
+        formExportar.style.display = 'inline-block';
+        fechaInput.value = fechaExportar.value;
+    }
+
+    fechaInput.addEventListener('change', () => {
+        fechaExportar.value = fechaInput.value;
+    });
+});
+</script>
+{% endblock %}

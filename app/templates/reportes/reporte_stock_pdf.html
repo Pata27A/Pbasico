@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            font-family: DejaVu Sans, sans-serif;
+            font-size: 10pt;
+        }
+        h2 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        th, td {
+            border: 1px solid #444;
+            padding: 4px;
+            text-align: left;
+        }
+        th {
+            background-color: #ccc;
+        }
+        .resumen {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #444;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>Reporte de Stock</h2>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Código</th>
+                <th>Nombre</th>
+                <th>Precio Costo</th>
+                <th>Precio Venta</th>
+                <th>Stock Mínimo</th>
+                <th>Stock Actual</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for producto in productos %}
+            <tr>
+                <td>{{ producto.codigo }}</td>
+                <td>{{ producto.nombre }}</td>
+                <td>{{ "%.2f"|format(producto.precio_costo) }}</td>
+                <td>{{ "%.2f"|format(producto.precio_venta) }}</td>
+                <td>{{ producto.stock_minimo }}</td>
+                <td>{{ producto.stock_actual }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="resumen">
+        <p><strong>Producto más vendido del mes:</strong>
+            {% if mas_vendido %}
+                {{ mas_vendido.nombre }} ({{ cantidad_mas_vendida }} unidades)
+            {% else %}
+                No hay datos disponibles.
+            {% endif %}
+        </p>
+        <p><strong>Producto menos vendido del mes:</strong>
+            {% if menos_vendido %}
+                {{ menos_vendido.nombre }} ({{ cantidad_menos_vendida }} unidades)
+            {% else %}
+                No hay datos disponibles.
+            {% endif %}
+        </p>
+    </div>
+
+</body>
+</html>

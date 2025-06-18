@@ -1,10 +1,13 @@
+import calendar
 import datetime
+from io import BytesIO
+from xhtml2pdf import pisa
 import json
 from sqlite3 import IntegrityError
 import traceback
-from flask import Blueprint, jsonify, render_template, redirect, url_for, flash, request
+from flask import Blueprint, jsonify, make_response, render_template, redirect, send_file, url_for, flash, request
 from flask_login import login_user, logout_user, login_required, current_user
-from sqlalchemy import func
+from sqlalchemy import extract, func
 from app.forms import LoginForm, ProductoForm
 from app.models import Caja, Cliente, Cobranza, DetalleFactura, Empresa, Factura, MetodoPago, MovimientoCaja, Producto, Usuario, Categoria
 from app import db
@@ -647,11 +650,220 @@ def configurar_empresa():
 
 #-----------Informes----------------------
 
-@main_bp.route('/informes')
+#---------------REPORTE DE CAJA POR FECHA---------------
+@main_bp.route('/reportes/caja')
 @login_required
-def informes():
-    return "Aquí van los Informes"
+def mostrar_reporte_caja():
+    fecha = datetime.date.today()  # o podés obtener de request.args si querés permitir cambiar fecha
+    caja = Caja.query.filter_by(fecha=fecha).first()
+    movimientos = MovimientoCaja.query.filter_by(caja_id=caja.id).order_by(MovimientoCaja.fecha).all() if caja else []
+    saldo_final = calcular_saldo_cierre(caja) if caja else 0
 
+    return render_template(
+        'reportes/reporte_caja.html',
+        caja=caja,
+        movimientos=movimientos,
+        saldo_final=saldo_final
+    )
+
+
+@main_bp.route('/reportes/caja/datos')
+@login_required
+def datos_reporte_caja():
+    fecha_str = request.args.get('fecha')
+    if not fecha_str:
+        return jsonify({'success': False, 'error': 'Fecha requerida'})
+
+    try:
+        fecha_dt = datetime.datetime.strptime(fecha_str, '%Y-%m-%d').date()
+    except ValueError:
+        return jsonify({'success': False, 'error': 'Formato de fecha inválido (YYYY-MM-DD)'})
+
+    caja = Caja.query.filter_by(fecha=fecha_dt).first()
+    if not caja:
+        return jsonify({'success': True, 'caja': None})
+
+    movimientos = MovimientoCaja.query.filter_by(caja_id=caja.id).order_by(MovimientoCaja.fecha).all()
+    saldo_final = calcular_saldo_cierre(caja)
+
+    movimientos_json = [{
+        'fecha': m.fecha.strftime('%Y-%m-%d %H:%M'),
+        'tipo': m.tipo,
+        'monto': m.monto,
+        'descripcion': m.descripcion
+    } for m in movimientos]
+
+    return jsonify({
+        'success': True,
+        'caja': {
+            'fecha': caja.fecha.strftime('%Y-%m-%d'),
+            'monto_apertura': caja.monto_apertura,
+            'saldo_final': saldo_final
+        },
+        'movimientos': movimientos_json
+    })
+@main_bp.route('/reportes/caja/pdf')
+@login_required
+def exportar_reporte_caja_pdf():
+    fecha_str = request.args.get('fecha')
+    if not fecha_str:
+        return "Fecha no proporcionada", 400
+
+    try:
+        fecha = datetime.datetime.strptime(fecha_str, "%Y-%m-%d").date()
+    except ValueError:
+        return "Fecha inválida", 400
+
+    caja = Caja.query.filter_by(fecha=fecha).first()
+    movimientos = MovimientoCaja.query.filter_by(caja_id=caja.id).order_by(MovimientoCaja.fecha).all() if caja else []
+    saldo_final = calcular_saldo_cierre(caja) if caja else 0
+
+    html = render_template("reportes/reporte_caja_pdf.html", caja=caja, movimientos=movimientos, saldo_final=saldo_final)
+
+    # Generar PDF
+    pdf = BytesIO()
+    pisa_status = pisa.CreatePDF(html, dest=pdf)
+    if pisa_status.err:
+        return "Error al generar PDF", 500
+
+    pdf.seek(0)
+    return send_file(pdf, mimetype='application/pdf', download_name=f"reporte_caja_{fecha}.pdf")
+
+#---------------REPORTE DE STOCK-----------------
+@main_bp.route('/reportes/stock')
+@login_required
+def exportar_reporte_stock_pdf():
+    productos = Producto.query.all()
+
+    hoy = datetime.datetime.today()
+    mes = hoy.month
+    año = hoy.year
+
+    # Total de productos vendidos en el mes actual
+    ventas = (
+        db.session.query(
+            DetalleFactura.producto_id,
+            func.sum(DetalleFactura.cantidad).label('total_vendido')
+        )
+        .join(Factura, DetalleFactura.factura_id == Factura.id)
+        .filter(extract('month', Factura.fecha) == mes)
+        .filter(extract('year', Factura.fecha) == año)
+        .group_by(DetalleFactura.producto_id)
+        .all()
+    )
+
+    ventas_dict = {v.producto_id: v.total_vendido for v in ventas}
+
+    mas_vendido_id = max(ventas_dict, key=ventas_dict.get, default=None)
+    menos_vendido_id = min(ventas_dict, key=ventas_dict.get, default=None)
+
+    mas_vendido = Producto.query.get(mas_vendido_id) if mas_vendido_id else None
+    menos_vendido = Producto.query.get(menos_vendido_id) if menos_vendido_id else None
+
+    cantidad_mas_vendida = ventas_dict.get(mas_vendido_id, 0)
+    cantidad_menos_vendida = ventas_dict.get(menos_vendido_id, 0)
+
+    html = render_template(
+        'reportes/reporte_stock_pdf.html',
+        productos=productos,
+        mas_vendido=mas_vendido,
+        menos_vendido=menos_vendido,
+        cantidad_mas_vendida=cantidad_mas_vendida,
+        cantidad_menos_vendida=cantidad_menos_vendida
+    )
+
+    result = BytesIO()
+    pisa_status = pisa.CreatePDF(html, dest=result)
+
+    if pisa_status.err:
+        return f'Error al generar PDF: {pisa_status.err}', 500
+
+    response = make_response(result.getvalue())
+    response.headers['Content-Type'] = 'application/pdf'
+    response.headers['Content-Disposition'] = 'inline; filename=stock.pdf'
+    return response
+
+#-----------------REPORTES DE VENTAS----------------
+@main_bp.route('/reportes/ventas/form')
+@login_required
+def reporte_ventas_form():
+    return render_template('reportes/reporte_ventas_form.html')
+
+@main_bp.route('/reportes/ventas')
+@login_required
+def reporte_ventas():
+    mes = request.args.get('mes', type=int)
+    anio = request.args.get('anio', type=int)
+
+    if not mes or not anio:
+        return "Debe especificar mes y año (parámetros 'mes' y 'anio')", 400
+
+    # Calcular días del mes
+    dias_mes = calendar.monthrange(anio, mes)[1]
+
+    # Consultar ingresos agrupados por día
+    ingresos_por_dia = db.session.query(
+        func.date(MovimientoCaja.fecha).label('dia'),
+        func.sum(MovimientoCaja.monto).label('total_ingreso')
+    ).filter(
+        MovimientoCaja.tipo.ilike('Ingreso'),
+        extract('year', MovimientoCaja.fecha) == anio,
+        extract('month', MovimientoCaja.fecha) == mes
+    ).group_by('dia').all()
+
+    # Consultar egresos agrupados por día
+    egresos_por_dia = db.session.query(
+        func.date(MovimientoCaja.fecha).label('dia'),
+        func.sum(MovimientoCaja.monto).label('total_egreso')
+    ).filter(
+        MovimientoCaja.tipo.ilike('Egreso'),
+        extract('year', MovimientoCaja.fecha) == anio,
+        extract('month', MovimientoCaja.fecha) == mes
+    ).group_by('dia').all()
+
+    # Convertir a diccionarios para fácil acceso por fecha
+    ingresos_dict = {ingreso.dia: ingreso.total_ingreso for ingreso in ingresos_por_dia}
+    egresos_dict = {egreso.dia: egreso.total_egreso for egreso in egresos_por_dia}
+
+    # Construir lista días con ingresos y egresos (para todos los días del mes)
+    reporte_diario = []
+    for dia in range(1, dias_mes + 1):
+        fecha = datetime.date(anio, mes, dia)
+        ingreso = ingresos_dict.get(fecha, 0)
+        egreso = egresos_dict.get(fecha, 0)
+        reporte_diario.append({
+            'fecha': fecha,
+            'ingreso': ingreso,
+            'egreso': egreso
+        })
+
+    # Totales del mes
+    total_ingresos = sum(r['ingreso'] for r in reporte_diario)
+    total_egresos = sum(r['egreso'] for r in reporte_diario)
+    ganancia = total_ingresos - total_egresos
+
+    # Renderizar PDF
+    html = render_template(
+        'reportes/reporte_ventas_pdf.html',
+        mes=mes,
+        anio=anio,
+        reporte_diario=reporte_diario,
+        total_ingresos=total_ingresos,
+        total_egresos=total_egresos,
+        ganancia=ganancia
+    )
+
+    result = BytesIO()
+    pisa_status = pisa.CreatePDF(html, dest=result)
+    if pisa_status.err:
+        return f"Error al generar PDF: {pisa_status.err}", 500
+
+    response = make_response(result.getvalue())
+    response.headers['Content-Type'] = 'application/pdf'
+    response.headers['Content-Disposition'] = f'inline; filename=ventas_{anio}_{mes}.pdf'
+    return response
+
+#----------------RG90----------------------
 @main_bp.route('/rg90')
 @login_required
 def rg90():

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Reporte de Ventas {{ mes }}/{{ anio }}</title>
+    <style>
+        table {width: 100%; border-collapse: collapse;}
+        th, td {border: 1px solid black; padding: 5px; text-align: right;}
+        th {background-color: #ddd;}
+        td.fecha {text-align: center;}
+    </style>
+</head>
+<body>
+    <h2>Reporte de Ventas - {{ mes }}/{{ anio }}</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Fecha</th>
+                <th>Ingreso</th>
+                <th>Egreso</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for fila in reporte_diario %}
+            <tr>
+                <td class="fecha">{{ fila.fecha.strftime('%d/%m/%Y') }}</td>
+                <td>{{ "{:,.0f}".format(fila.ingreso) if fila.ingreso else '-' }}</td>
+                <td>{{ "{:,.0f}".format(fila.egreso) if fila.egreso else '-' }}</td>
+            </tr>
+            {% endfor %}
+            <tr>
+                <th>TOTAL</th>
+                <th>{{ "{:,.0f}".format(total_ingresos) }}</th>
+                <th>{{ "{:,.0f}".format(total_egresos) }}</th>
+            </tr>
+        </tbody>
+    </table>
+    <h3>TOTAL GANANCIA DEL MES: {{ "{:,.0f}".format(ganancia) }}</h3>
+</body>
+</html>

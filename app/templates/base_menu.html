@@ -60,7 +60,15 @@
                 <a class="d-block text-white-50" href="{{ url_for('main_bp.cobranzas') }}">Cobranzas</a>
             </div>
             <a class="d-block text-white mb-2" href="{{ url_for('main_bp.mostrar_reporte') }}">Ganancias</a>
-            <a class="d-block text-white mb-2" href="{{ url_for('main_bp.informes') }}">Informes</a>
+            <a class="d-block text-white mb-2" data-bs-toggle="collapse" href="#informesSubmenu" role="button" aria-expanded="false" aria-controls="informesSubmenu">
+                 Informes
+            </a>
+            <div class="collapse ps-3" id="informesSubmenu">
+                <a class="d-block text-white-50 mb-1" href="{{ url_for('main_bp.mostrar_reporte_caja') }}">Reporte de Caja</a>
+                <a class="d-block text-white-50 mb-1" href="{{ url_for('main_bp.exportar_reporte_stock_pdf') }}" target="_blank">Reportes Stock</a>
+                <a class="d-block text-white-50 mb-1" href="{{ url_for('main_bp.reporte_ventas_form') }}">Reporte Ventas - Ganancias</a>
+
+            </div>
             <a class="d-block text-white mb-2" href="{{ url_for('main_bp.rg90') }}">RG90</a>
             <a class="d-block text-white mb-2" href="{{ url_for('main_bp.configurar_empresa') }}">Configuración Empresa</a>
 

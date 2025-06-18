@@ -1,0 +1,25 @@
+{% extends 'base_menu.html' %}
+
+{% block content %}
+<h2>Generar Reporte de Ventas - Ganancias</h2>
+
+<form method="get" action="{{ url_for('main_bp.reporte_ventas') }}" target="_blank">
+    <label for="mes">Mes:</label>
+    <select name="mes" id="mes" required>
+        <option value="">-- Seleccionar --</option>
+        {% for m in range(1, 13) %}
+            <option value="{{ m }}">{{ "{:02d}".format(m) }}</option>
+        {% endfor %}
+    </select>
+
+    <label for="anio">Año:</label>
+    <select name="anio" id="anio" required>
+        <option value="">-- Seleccionar --</option>
+        {% for a in range(2022, 2031) %}
+            <option value="{{ a }}">{{ a }}</option>
+        {% endfor %}
+    </select>
+
+    <button type="submit">Generar PDF</button>
+</form>
+{% endblock %}
