@@ -6,43 +6,58 @@
           <h5 class="modal-title" id="cobroLabel">Cobro</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
-        <div class="modal-body">
 
+        <div class="modal-body">
           <!-- Total a cobrar -->
-          <div class="mb-3">
-            <label class="form-label">Total a cobrar:</label>
+          <div class="mb-2">
+            <label>Total a cobrar:</label>
             <span id="total_a_cobrar" class="fw-bold fs-5">0</span>
-            <!-- input oculto para manejarlo en JS -->
             <input type="hidden" id="cobro_total" value="0">
           </div>
 
-          <!-- Monto pagado -->
-          <div class="mb-3">
-            <label class="form-label">Monto pagado:</label>
-            <input type="number" id="cobro_pago" class="form-control" min="0" step="1" value="0" required>
+          <!-- Agregar forma de pago -->
+          <div class="row g-2 align-items-end mb-3">
+            <div class="col-4">
+              <label>Monto:</label>
+              <input type="number" id="pago_monto" class="form-control" min="0" step="1000">
+            </div>
+            <div class="col-4">
+              <label>Método:</label>
+              <select id="pago_metodo" class="form-control">
+                <!-- Opciones dinámicas por JS -->
+              </select>
+            </div>
+            <div class="col-3">
+              <label>Descripción:</label>
+              <input type="text" id="pago_descripcion" class="form-control">
+            </div>
+            <div class="col-1">
+              <button type="button" class="btn btn-primary" onclick="agregarPago()">+</button>
+            </div>
           </div>
+
+          <!-- Lista de pagos -->
+          <table class="table table-sm">
+            <thead>
+              <tr><th>Método</th><th>Monto</th><th>Descripción</th><th></th></tr>
+            </thead>
+            <tbody id="tablaPagos"></tbody>
+            <tfoot>
+              <tr>
+                <td colspan="1" class="text-end"><strong>Total Pagado:</strong></td>
+                <td colspan="2" id="total_pagado">0</td>
+                <td></td>
+              </tr>
+            </tfoot>
+          </table>
 
           <!-- Vuelto -->
-          <div class="mb-3">
-            <label class="form-label">Vuelto:</label>
-            <span id="vuelto_monto" class="fw-bold fs-5 text-success">0</span>
+          <div class="mb-2">
+            <label>Vuelto:</label>
+            <span id="vuelto_monto" class="fw-bold text-success fs-5">0</span>
           </div>
-
-          <!-- Método de pago -->
-          <div class="mb-3">
-            <label class="form-label">Método de pago:</label>
-            <select id="cobro_metodo" class="form-control" required>
-              <!-- Se carga dinámicamente -->
-            </select>
-          </div>
-
-          <!-- Descripción -->
-          <div class="mb-3">
-            <label class="form-label">Descripción (opcional):</label>
-            <input type="text" id="cobro_descripcion" class="form-control">
-          </div>
-
         </div>
+
         <div class="modal-footer">
           <button type="submit" class="btn btn-success">Confirmar Cobro</button>
         </div>

@@ -41,8 +41,47 @@
   </div>
 </div>
 
+<!-- Sección persistente del vuelto -->
+<div id="vueltoDisplay" style="
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background-color: #212529;
+  color: #00ff88;
+  font-size: 1.8rem;
+  font-weight: bold;
+  padding: 10px 20px;
+  border-radius: 10px;
+  box-shadow: 0 0 10px rgba(0,0,0,0.3);
+  z-index: 9999;
+  user-select: none;
+  pointer-events: none;
+  display: none;
+">
+  Vuelto: Gs. <span id="vueltoTexto">0</span>
+</div>
+
 {% include 'facturacion/cliente_modal.html' %}
 {% include 'facturacion/cobro_modal.html' %}
+<script>
+  const vueltoRecibido = {{ vuelto | tojson | safe }};
+
+  window.addEventListener('DOMContentLoaded', () => {
+    const vueltoDisplay = document.getElementById('vueltoDisplay');
+    const vueltoTexto = document.getElementById('vueltoTexto');
+
+    if (vueltoRecibido > 0) {
+      vueltoTexto.textContent = vueltoRecibido.toLocaleString('es-PY');
+      vueltoDisplay.style.display = 'block';
+
+      // Ocultar después de 10 segundos (10000 ms)
+      setTimeout(() => {
+        vueltoDisplay.style.display = 'none';
+      }, 10000);
+    }
+  });
+</script>
+
 
 <script src="{{ url_for('static', filename='js/facturacion/pos.js') }}"></script>
 {% endblock %}

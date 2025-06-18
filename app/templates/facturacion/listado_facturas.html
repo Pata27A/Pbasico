@@ -1,0 +1,43 @@
+{% extends 'base_menu.html' %}
+
+{% block title %}Listado de Facturas{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <h3>Listado de Facturas</h3>
+
+  <div class="row mb-3">
+    <div class="col-md-3">
+      <label for="fecha_desde">Desde:</label>
+      <input type="date" id="fecha_desde" class="form-control" />
+    </div>
+    <div class="col-md-3">
+      <label for="fecha_hasta">Hasta:</label>
+      <input type="date" id="fecha_hasta" class="form-control" />
+    </div>
+    <div class="col-md-3 d-flex align-items-end">
+      <button class="btn btn-primary w-100" id="btnBuscar">Buscar</button>
+    </div>
+  </div>
+
+  <table class="table table-striped" id="tablaFacturas">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Fecha</th>
+        <th>Cliente</th>
+        <th>Total</th>
+        <th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- Filas cargadas dinámicamente -->
+    </tbody>
+  </table>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/facturacion/listado_facturas.js') }}"></script>
+{% endblock %}
+

@@ -252,26 +252,39 @@ def facturacion():
     productos = Producto.query.all()
     clientes = Cliente.query.all()
     metodos_pago = MetodoPago.query.all()
+    vuelto = request.args.get('vuelto', default=0, type=float)
     return render_template('facturacion/nueva_factura_pos.html',
                            productos=productos,
                            clientes=clientes,
-                           metodos_pago=metodos_pago)
+                           metodos_pago=metodos_pago,
+                           vuelto=vuelto)
 
 @main_bp.route('/facturacion/guardar', methods=['POST'])
 @login_required
 def guardar_factura():
     try:
         data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': 'No se recibieron datos JSON'}), 400
 
         cliente_id = data.get('cliente_id')
         detalles = data.get('detalles', [])
         pagos = data.get('pagos', [])
-        total_factura = data.get('total', 0)
-        impuesto = data.get('impuesto', 0)
+        total_factura = float(data.get('total', 0))
+        impuesto = float(data.get('impuesto', 0))
 
-        # Generamos el número automáticamente
+        # Validar suma de pagos >= total factura
+        suma_pagos = sum(float(p.get('monto', 0)) for p in pagos)
+        if round(suma_pagos, 2) < round(total_factura, 2):
+            return jsonify({'success': False, 'error': 'El monto pagado no cubre el total de la factura'}), 400
+
+        # Calcular vuelto (si hay)
+        vuelto = round(suma_pagos - total_factura, 2) if suma_pagos > total_factura else 0
+
+        # Generar número de factura (tu función)
         nuevo_numero = generar_numero_factura()
 
+        # Crear factura
         nueva_factura = Factura(
             numero=nuevo_numero,
             fecha=datetime.datetime.utcnow(),
@@ -281,18 +294,16 @@ def guardar_factura():
             usuario_id=current_user.id
         )
         db.session.add(nueva_factura)
-        db.session.flush()
+        db.session.flush()  # Para obtener ID factura
 
+        # Guardar detalles y descontar stock
         for item in detalles:
             producto = db.session.query(Producto).with_for_update().filter_by(codigo=item['codigo']).first()
             if not producto:
                 raise ValueError(f"Producto con código {item['codigo']} no encontrado")
-
             cantidad = float(item['cantidad'])
-
             if producto.stock_actual < cantidad:
-                raise ValueError(f"Stock insuficiente para el producto {producto.nombre}. Disponible: {producto.stock_actual}, requerido: {cantidad}")
-
+                raise ValueError(f"Stock insuficiente para {producto.nombre} (disponible: {producto.stock_actual}, requerido: {cantidad})")
             producto.stock_actual -= cantidad
 
             detalle = DetalleFactura(
@@ -304,6 +315,7 @@ def guardar_factura():
             )
             db.session.add(detalle)
 
+        # Guardar pagos y movimientos caja
         for pago in pagos:
             pago_db = Cobranza(
                 factura_id=nueva_factura.id,
@@ -314,35 +326,33 @@ def guardar_factura():
             )
             db.session.add(pago_db)
 
-            # Registrar movimiento de caja solo si hay caja abierta
             caja = obtener_caja_abierta()
             if caja:
                 movimiento = MovimientoCaja(
                     caja_id=caja.id,
                     tipo='Ingreso',
                     monto=pago_db.monto,
-                    descripcion=f'Cobro de factura {nueva_factura.numero}',
+                    descripcion=f'Cobro factura {nueva_factura.numero}',
                     usuario_id=current_user.id
                 )
                 db.session.add(movimiento)
             else:
-                print("No hay caja abierta para registrar movimiento")
+                # Puedes loguear que no hay caja abierta si es necesario
+                pass
 
         db.session.commit()
-        return jsonify({'success': True, 'factura_id': nueva_factura.id})
+
+        return jsonify({'success': True, 'factura_id': nueva_factura.id, 'vuelto': vuelto})
 
     except IntegrityError as e:
         db.session.rollback()
-        print("Error de integridad:", e)
-        return jsonify({'success': False, 'error': 'Número de factura duplicado'})
+        return jsonify({'success': False, 'error': 'Número de factura duplicado'}), 400
+
     except Exception as e:
         db.session.rollback()
-        print("Error general:", e)
         traceback.print_exc()
-        return jsonify({'success': False, 'error': str(e)})
-
-
-
+        return jsonify({'success': False, 'error': str(e)}), 500
+    
 @main_bp.route('/facturacion/api/buscar_producto')
 @login_required
 def buscar_producto():
@@ -369,7 +379,7 @@ def buscar_producto():
 
 @main_bp.route('/facturacion/imprimir/<int:id>')
 @login_required
-def imprimir_factura(id):
+def imprimir_factura1(id):
     factura = Factura.query.get_or_404(id)
 
     # Suponemos que siempre hay un único registro de empresa
@@ -378,11 +388,50 @@ def imprimir_factura(id):
     return render_template('facturacion/imprimir.html', factura=factura, empresa=empresa)
 
 
-@main_bp.route('/facturacion/listado')
+@main_bp.route('/facturas/listar')
 @login_required
 def listado_facturas():
-    facturas = Factura.query.order_by(Factura.fecha.desc()).all()
-    return render_template('facturacion/listado.html', facturas=facturas)
+    # Simplemente renderiza el template con el filtro y tabla vacía (se llenará con JS)
+    return render_template('facturacion/listado_facturas.html')
+
+@main_bp.route('/facturas/api')
+@login_required
+def facturas_api():
+    desde_str = request.args.get('desde')
+    hasta_str = request.args.get('hasta')
+
+    query = Factura.query
+
+    try:
+        if desde_str:
+            desde = datetime.datetime.strptime(desde_str, '%Y-%m-%d')
+            query = query.filter(Factura.fecha >= desde)
+        if hasta_str:
+            hasta = datetime.datetime.strptime(hasta_str, '%Y-%m-%d') + datetime.timedelta(days=1)
+            query = query.filter(Factura.fecha < hasta)  # < en lugar de <=
+    except ValueError:
+        return jsonify([])  # fechas inválidas, devuelve vacío
+
+    facturas = query.order_by(Factura.fecha.desc()).all()
+
+    result = []
+    for f in facturas:
+        result.append({
+            'id': f.id,
+            'fecha': f.fecha.strftime('%Y-%m-%d %H:%M'),
+            'cliente': f.cliente.nombre if f.cliente else None,
+            'total': f.total,
+        })
+
+    return jsonify(result)
+
+
+@main_bp.route('/facturas/imprimir/<int:factura_id>')
+@login_required
+def imprimir_factura(factura_id):
+    factura = Factura.query.get_or_404(factura_id)
+    empresa = Empresa.query.first()
+    return render_template('facturacion/imprimir.html', factura=factura, empresa=empresa)
 
 # ------------------ COBRANZAS ------------------ #
 
