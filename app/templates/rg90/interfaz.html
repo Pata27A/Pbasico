@@ -1,0 +1,23 @@
+{% extends "base_menu.html" %}
+
+{% block content %}
+<h2>Generar y Validar RG90</h2>
+
+<form id="rg90-form">
+  <div>
+    <label for="periodo">Período (MMYYYY):</label>
+    <input type="text" id="periodo" name="periodo" placeholder="Ej: 062025" maxlength="6" required>
+    <button type="submit">Generar Archivo</button>
+  </div>
+</form>
+
+<div style="margin-top: 20px;">
+  <label for="archivo">Seleccionar archivo CSV RG90:</label>
+  <input type="file" id="archivo" accept=".csv">
+  <button id="validar-btn">Validar Archivo</button>
+</div>
+
+<div id="rg90-result" style="margin-top: 20px;"></div>
+
+<script src="{{ url_for('static', filename='js/rg90/interface.js') }}"></script>
+{% endblock %}

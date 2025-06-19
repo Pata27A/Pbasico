@@ -65,20 +65,20 @@ Hasta: {{ empresa.timbrado_vigencia_hasta.strftime('%Y-%m-%d') if empresa.timbra
 
 <div class="separador"></div>
 
-{% set gravadas_10 = factura.total %}
-{% set iva_10 = gravadas_10 / 11 %}
-{% set subtotal = factura.total %}
 {% set total_pagado = factura.cobranzas | sum(attribute='monto') %}
 {% set vuelto = total_pagado - factura.total %}
 
-<p>Sub Total.............Gs.: {{ "{:,.0f}".format(subtotal) }}</p>
-<p>Exentos...............Gs.: 0</p>
-<p>Gravadas 10%..........Gs.: {{ "{:,.0f}".format(gravadas_10) }}</p>
+<p>Sub Total.............Gs.: {{ "{:,.0f}".format(factura.total) }}</p>
+<p>Exentos...............Gs.: {{ "{:,.0f}".format(iva_exento or 0) }}</p>
+<p>Gravadas 5%...........Gs.: {{ "{:,.0f}".format(iva_5 * 21 if iva_5 else 0) }}</p>
+<p>Gravadas 10%..........Gs.: {{ "{:,.0f}".format(iva_10 * 11 if iva_10 else 0) }}</p>
 <p>TOTAL: Gs. {{ "{:,.0f}".format(factura.total) }}</p>
 <p>Pagado: Gs. {{ "{:,.0f}".format(total_pagado) }}</p>
 <p>Vuelto: Gs. {{ "{:,.0f}".format(vuelto if vuelto >= 0 else 0) }}</p>
 
-<p>I.V.A. 10% Gs.: {{ "{:,.0f}".format(iva_10) }}</p>
+<p>I.V.A. 5% Gs.: {{ "{:,.0f}".format(iva_5 or 0) }}</p>
+<p>I.V.A. 10% Gs.: {{ "{:,.0f}".format(iva_10 or 0) }}</p>
+<p>Total IVA: Gs.: {{ "{:,.0f}".format((iva_5 or 0) + (iva_10 or 0)) }}</p>
 
 <div class="separador"></div>
 

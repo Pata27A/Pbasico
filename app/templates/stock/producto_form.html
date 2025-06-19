@@ -62,6 +62,25 @@
         {% endfor %}
     </div>
 
+    <div class="mb-3">
+        <label class="form-label">Tipo de IVA</label>
+        <div class="btn-group d-flex" role="group" aria-label="IVA options">
+            {% for value, label in form.iva_tipo.choices %}
+                <input type="radio"
+                       class="btn-check"
+                       name="{{ form.iva_tipo.name }}"
+                       id="iva_{{ value }}"
+                       autocomplete="off"
+                       value="{{ value }}"
+                       {% if form.iva_tipo.data == value %}checked{% endif %}>
+                <label class="btn btn-outline-primary" for="iva_{{ value }}">{{ label }}</label>
+            {% endfor %}
+        </div>
+        {% for error in form.iva_tipo.errors %}
+            <div class="text-danger">{{ error }}</div>
+        {% endfor %}
+    </div>
+
     <button type="submit" class="btn btn-primary">Guardar</button>
     <a href="{{ url_for('main_bp.listar_productos') }}" class="btn btn-secondary">Cancelar</a>
 </form>

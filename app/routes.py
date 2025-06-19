@@ -1,6 +1,8 @@
 import calendar
+import csv
 import datetime
-from io import BytesIO
+from io import BytesIO, StringIO
+import os
 from xhtml2pdf import pisa
 import json
 from sqlite3 import IntegrityError
@@ -12,6 +14,10 @@ from app.forms import LoginForm, ProductoForm
 from app.models import Caja, Cliente, Cobranza, DetalleFactura, Empresa, Factura, MetodoPago, MovimientoCaja, Producto, Usuario, Categoria
 from app import db
 from app.utils import generar_numero_factura
+import generar_archivo_rg90
+# Importa tus funciones de generación y validación RG90
+from generar_archivo_rg90 import generar_archivo_rg90
+from app.scripts.rg90_validacion import validar_linea
 
 main_bp = Blueprint('main_bp', __name__)
 
@@ -56,11 +62,6 @@ def dashboard():
     return render_template('dashboard.html')
 
 # ---------------------- STOCK ----------------------
-@main_bp.route('/stock')
-@login_required
-def stock():
-    return "Aquí va la Gestión de Stock"
-
 @main_bp.route('/productos')
 @login_required
 def listar_productos():
@@ -82,15 +83,16 @@ def agregar_producto():
             precio_costo=form.precio_costo.data,
             precio_venta=form.precio_venta.data,
             stock_minimo=form.stock_minimo.data or 0,
-            stock_actual=form.stock_actual.data or 0
+            stock_actual=form.stock_actual.data or 0,
+            iva_tipo=form.iva_tipo.data  # <-- Aquí
         )
         db.session.add(nuevo_producto)
         db.session.commit()
         flash('Producto agregado correctamente.', 'success')
-        productos = Producto.query.all()
-        return render_template('stock/listar_productos.html', productos=productos)
+        return redirect(url_for('main_bp.listar_productos'))
 
     return render_template('stock/producto_form.html', form=form, titulo='Agregar Producto')
+
 
 @main_bp.route('/producto/editar/<int:id>', methods=['GET', 'POST'])
 @login_required
@@ -107,13 +109,13 @@ def editar_producto(id):
         producto.precio_venta = form.precio_venta.data
         producto.stock_minimo = form.stock_minimo.data or 0
         producto.stock_actual = form.stock_actual.data or 0
+        producto.iva_tipo = form.iva_tipo.data  # <-- Aquí
 
         db.session.commit()
         flash('Producto actualizado correctamente.', 'success')
         return redirect(url_for('main_bp.listar_productos'))
 
     return render_template('stock/producto_form.html', form=form, titulo='Editar Producto')
-
 
 # ---------------------- CAJA ----------------------
 def calcular_saldo_cierre(caja):
@@ -274,7 +276,11 @@ def guardar_factura():
         detalles = data.get('detalles', [])
         pagos = data.get('pagos', [])
         total_factura = float(data.get('total', 0))
-        impuesto = float(data.get('impuesto', 0))
+
+        # Variables para acumular IVA según tipo
+        iva_10 = 0
+        iva_5 = 0
+        exentas = 0
 
         # Validar suma de pagos >= total factura
         suma_pagos = sum(float(p.get('monto', 0)) for p in pagos)
@@ -287,19 +293,18 @@ def guardar_factura():
         # Generar número de factura (tu función)
         nuevo_numero = generar_numero_factura()
 
-        # Crear factura
+        # Crear factura sin impuesto todavía
         nueva_factura = Factura(
             numero=nuevo_numero,
             fecha=datetime.datetime.utcnow(),
             cliente_id=cliente_id if cliente_id else None,
             total=total_factura,
-            impuesto=impuesto,
             usuario_id=current_user.id
         )
         db.session.add(nueva_factura)
         db.session.flush()  # Para obtener ID factura
 
-        # Guardar detalles y descontar stock
+        # Guardar detalles y descontar stock, calcular IVA
         for item in detalles:
             producto = db.session.query(Producto).with_for_update().filter_by(codigo=item['codigo']).first()
             if not producto:
@@ -307,16 +312,30 @@ def guardar_factura():
             cantidad = float(item['cantidad'])
             if producto.stock_actual < cantidad:
                 raise ValueError(f"Stock insuficiente para {producto.nombre} (disponible: {producto.stock_actual}, requerido: {cantidad})")
+
             producto.stock_actual -= cantidad
+
+            subtotal = float(item['subtotal'])  # Precio con IVA incluido
+
+            # Calcular IVA según tipo
+            if producto.iva_tipo == '10':
+                iva_10 += round(subtotal / 11, 2)
+            elif producto.iva_tipo == '5':
+                iva_5 += round(subtotal / 21, 2)
+            else:  # Exentas o "0"
+                exentas += subtotal
 
             detalle = DetalleFactura(
                 factura_id=nueva_factura.id,
                 producto_id=producto.id,
                 cantidad=cantidad,
                 precio_unitario=float(item['precio_unitario']),
-                subtotal=float(item['subtotal'])
+                subtotal=subtotal
             )
             db.session.add(detalle)
+
+        impuesto_total = round(iva_10 + iva_5, 2)
+        nueva_factura.impuesto = impuesto_total
 
         # Guardar pagos y movimientos caja
         for pago in pagos:
@@ -340,7 +359,7 @@ def guardar_factura():
                 )
                 db.session.add(movimiento)
             else:
-                # Puedes loguear que no hay caja abierta si es necesario
+                # Aquí podés loguear que no hay caja abierta, si querés
                 pass
 
         db.session.commit()
@@ -355,7 +374,8 @@ def guardar_factura():
         db.session.rollback()
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
-    
+
+
 @main_bp.route('/facturacion/api/buscar_producto')
 @login_required
 def buscar_producto():
@@ -384,18 +404,40 @@ def buscar_producto():
 @login_required
 def imprimir_factura1(id):
     factura = Factura.query.get_or_404(id)
-
-    # Suponemos que siempre hay un único registro de empresa
     empresa = Empresa.query.first()
 
-    return render_template('facturacion/imprimir.html', factura=factura, empresa=empresa)
+    # Inicializar montos de IVA
+    iva_10 = 0
+    iva_5 = 0
+    iva_exento = 0
+
+    # Recorrer detalles y acumular IVA según tipo
+    for detalle in factura.detalles:
+        subtotal = detalle.subtotal
+        tipo_iva = detalle.producto.iva_tipo  # "10", "5", "0"
+
+        if tipo_iva == "10":
+            iva_10 += round(subtotal / 11, 2)
+        elif tipo_iva == "5":
+            iva_5 += round(subtotal / 21, 2)
+        else:
+            iva_exento += subtotal
+
+    return render_template(
+        'facturacion/imprimir.html',
+        factura=factura,
+        empresa=empresa,
+        iva_10=iva_10,
+        iva_5=iva_5,
+        iva_exento=iva_exento
+    )
 
 
 @main_bp.route('/facturas/listar')
 @login_required
 def listado_facturas():
-    # Simplemente renderiza el template con el filtro y tabla vacía (se llenará con JS)
     return render_template('facturacion/listado_facturas.html')
+
 
 @main_bp.route('/facturas/api')
 @login_required
@@ -411,9 +453,9 @@ def facturas_api():
             query = query.filter(Factura.fecha >= desde)
         if hasta_str:
             hasta = datetime.datetime.strptime(hasta_str, '%Y-%m-%d') + datetime.timedelta(days=1)
-            query = query.filter(Factura.fecha < hasta)  # < en lugar de <=
+            query = query.filter(Factura.fecha < hasta)
     except ValueError:
-        return jsonify([])  # fechas inválidas, devuelve vacío
+        return jsonify([])
 
     facturas = query.order_by(Factura.fecha.desc()).all()
 
@@ -432,9 +474,8 @@ def facturas_api():
 @main_bp.route('/facturas/imprimir/<int:factura_id>')
 @login_required
 def imprimir_factura(factura_id):
-    factura = Factura.query.get_or_404(factura_id)
-    empresa = Empresa.query.first()
-    return render_template('facturacion/imprimir.html', factura=factura, empresa=empresa)
+    # Redirige a la misma función para evitar duplicación
+    return imprimir_factura1(factura_id)
 
 # ------------------ COBRANZAS ------------------ #
 
@@ -863,8 +904,57 @@ def reporte_ventas():
     response.headers['Content-Disposition'] = f'inline; filename=ventas_{anio}_{mes}.pdf'
     return response
 
-#----------------RG90----------------------
+#----------------RG90--------------
 @main_bp.route('/rg90')
 @login_required
 def rg90():
-    return "Aquí va la Exportación RG90"
+    # Muestra la interfaz para generar y validar RG90
+    return render_template('rg90/interfaz.html')
+
+
+@main_bp.route('/rg90/ajax', methods=['POST'])
+@login_required
+def rg90_ajax():
+    periodo = request.form.get('periodo')
+    if not periodo or len(periodo) != 6:
+        return jsonify({"ok": False, "errores": ["Período inválido."]})
+
+    try:
+        ruta_zip = generar_archivo_rg90(periodo=periodo)
+        ruta_csv = ruta_zip.replace('.zip', '.csv')
+
+        errores = []
+        with open(ruta_csv, encoding='utf-8') as f:
+            reader = csv.reader(f, delimiter=';')
+            for i, linea in enumerate(reader, start=1):
+                errores.extend(validar_linea(linea, i))
+
+        if errores:
+            return jsonify({"ok": False, "errores": errores})
+
+        nombre_zip = os.path.basename(ruta_zip)
+        return jsonify({"ok": True, "archivo": nombre_zip})
+
+    except Exception as e:
+        return jsonify({"ok": False, "errores": [str(e)]})
+
+
+@main_bp.route('/rg90/validar_local', methods=['POST'])
+@login_required
+def rg90_validar_local():
+    data = request.get_json()
+    contenido_csv = data.get('contenido_csv')
+    if not contenido_csv:
+        return jsonify({"ok": False, "errores": ["No se recibió contenido del archivo CSV."]})
+
+    errores = []
+    try:
+        f = StringIO(contenido_csv)
+        reader = csv.reader(f, delimiter=';')
+        for i, linea in enumerate(reader, start=1):
+            errores.extend(validar_linea(linea, i))
+
+        return jsonify({"ok": not errores, "errores": errores})
+
+    except Exception as e:
+        return jsonify({"ok": False, "errores": [str(e)]})

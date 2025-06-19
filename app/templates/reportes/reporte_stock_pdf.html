@@ -37,27 +37,38 @@
 
     <table>
         <thead>
-            <tr>
-                <th>Código</th>
-                <th>Nombre</th>
-                <th>Precio Costo</th>
-                <th>Precio Venta</th>
-                <th>Stock Mínimo</th>
-                <th>Stock Actual</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for producto in productos %}
-            <tr>
-                <td>{{ producto.codigo }}</td>
-                <td>{{ producto.nombre }}</td>
-                <td>{{ "%.2f"|format(producto.precio_costo) }}</td>
-                <td>{{ "%.2f"|format(producto.precio_venta) }}</td>
-                <td>{{ producto.stock_minimo }}</td>
-                <td>{{ producto.stock_actual }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
+    <tr>
+        <th>Código</th>
+        <th>Nombre</th>
+        <th>Precio Costo</th>
+        <th>Precio Venta</th>
+        <th>Stock Mínimo</th>
+        <th>Stock Actual</th>
+        <th>IVA</th>  <!-- NUEVA COLUMNA -->
+    </tr>
+</thead>
+<tbody>
+    {% for producto in productos %}
+    <tr>
+        <td>{{ producto.codigo }}</td>
+        <td>{{ producto.nombre }}</td>
+        <td>{{ "%.2f"|format(producto.precio_costo) }}</td>
+        <td>{{ "%.2f"|format(producto.precio_venta) }}</td>
+        <td>{{ producto.stock_minimo }}</td>
+        <td>{{ producto.stock_actual }}</td>
+        <td>
+            {% if producto.iva_tipo == '10' %}
+                IVA 10%
+            {% elif producto.iva_tipo == '5' %}
+                IVA 5%
+            {% else %}
+                Exento
+            {% endif %}
+        </td>
+    </tr>
+    {% endfor %}
+</tbody>
+
     </table>
 
     <div class="resumen">

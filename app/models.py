@@ -4,8 +4,6 @@ from flask_bcrypt import generate_password_hash, check_password_hash
 from app import bcrypt
 from flask_login import UserMixin
 
-
-
 # ---------------- Roles y Usuarios ----------------
 
 class Rol(db.Model):
@@ -16,16 +14,16 @@ class Rol(db.Model):
 
     usuarios = db.relationship('Usuario', backref='rol', lazy=True)
 
+
 class Usuario(UserMixin, db.Model):
     __tablename__ = 'usuarios'
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
-    password_hash = db.Column(db.Text, nullable=False)  # sin límite
+    password_hash = db.Column(db.Text, nullable=False)
     rol_id = db.Column(db.Integer, db.ForeignKey('roles.id'), nullable=False)
     activo = db.Column(db.Boolean, default=True)
 
-    # Relaciones para saber las acciones del usuario (opcional)
     movimientos_stock = db.relationship('MovimientoStock', backref='usuario', lazy=True)
     movimientos_caja = db.relationship('MovimientoCaja', backref='usuario', lazy=True)
     facturas = db.relationship('Factura', backref='usuario', lazy=True)
@@ -39,7 +37,6 @@ class Usuario(UserMixin, db.Model):
         return bcrypt.check_password_hash(self.password_hash, password)
 
 
-
 # -------------- Control de Stock ----------------
 
 class Categoria(db.Model):
@@ -50,6 +47,7 @@ class Categoria(db.Model):
 
     productos = db.relationship('Producto', backref='categoria', lazy=True)
 
+
 class Producto(db.Model):
     __tablename__ = 'productos'
     id = db.Column(db.Integer, primary_key=True)
@@ -58,13 +56,13 @@ class Producto(db.Model):
     categoria_id = db.Column(db.Integer, db.ForeignKey('categorias.id'), nullable=True)
     precio_costo = db.Column(db.Float, nullable=False)
     precio_venta = db.Column(db.Float, nullable=False)
-    stock_minimo = db.Column(db.Integer, default=0)  # Para alerta de stock bajo
+    stock_minimo = db.Column(db.Integer, default=0)
+    stock_actual = db.Column(db.Integer, default=0, nullable=False)
 
-    stock_actual = db.Column(db.Integer, default=0, nullable=False)  # Ahora editable y guardado en DB
+    iva_tipo = db.Column(db.String(2), nullable=False, default="10")  # "10", "5", "0"
 
     movimientos = db.relationship('MovimientoStock', backref='producto', lazy=True)
 
-    # Si querés calcular stock según movimientos, usá otro método o propiedad con otro nombre
     def calcular_stock_actual(self):
         entradas = sum(m.cantidad for m in self.movimientos if m.tipo == 'entrada')
         salidas = sum(m.cantidad for m in self.movimientos if m.tipo == 'salida')
@@ -75,9 +73,9 @@ class MovimientoStock(db.Model):
     __tablename__ = 'movimientos_stock'
     id = db.Column(db.Integer, primary_key=True)
     producto_id = db.Column(db.Integer, db.ForeignKey('productos.id'), nullable=False)
-    tipo = db.Column(db.String(20), nullable=False)  # 'entrada' o 'salida'
+    tipo = db.Column(db.String(20), nullable=False)
     cantidad = db.Column(db.Integer, nullable=False)
-    descripcion = db.Column(db.String(255))  # ej. "compra proveedor", "venta factura #123"
+    descripcion = db.Column(db.String(255))
     fecha = db.Column(db.DateTime, default=datetime.utcnow)
     usuario_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)
 
@@ -94,11 +92,12 @@ class Caja(db.Model):
 
     movimientos = db.relationship('MovimientoCaja', backref='caja', lazy=True)
 
+
 class MovimientoCaja(db.Model):
     __tablename__ = 'movimientos_caja'
     id = db.Column(db.Integer, primary_key=True)
     caja_id = db.Column(db.Integer, db.ForeignKey('cajas.id'), nullable=False)
-    tipo = db.Column(db.String(20), nullable=False)  # 'ingreso' o 'egreso'
+    tipo = db.Column(db.String(20), nullable=False)
     monto = db.Column(db.Float, nullable=False)
     descripcion = db.Column(db.String(255))
     fecha = db.Column(db.DateTime, default=datetime.utcnow)
@@ -111,22 +110,36 @@ class Cliente(db.Model):
     __tablename__ = 'clientes'
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(150), nullable=False)
-    documento = db.Column(db.String(50), nullable=True)  # CI o RUC opcional
+    documento = db.Column(db.String(50), nullable=True)
+    tipo_identificacion = db.Column(db.String(2), nullable=True)
     telefono = db.Column(db.String(50))
     email = db.Column(db.String(100))
 
     facturas = db.relationship('Factura', backref='cliente', lazy=True)
+
 
 class Factura(db.Model):
     __tablename__ = 'facturas'
     id = db.Column(db.Integer, primary_key=True)
     cliente_id = db.Column(db.Integer, db.ForeignKey('clientes.id'), nullable=True)
     usuario_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)
-    numero = db.Column(db.String(50), unique=True, nullable=False)  # correlativo
+
+    numero = db.Column(db.String(50), unique=True, nullable=False)
+    tipo_comprobante = db.Column(db.String(3), nullable=False, default='109')
+
     fecha = db.Column(db.DateTime, default=datetime.utcnow)
+
+    monto_gravado = db.Column(db.Float, nullable=False, default=0)
+    monto_exonerado = db.Column(db.Float, nullable=False, default=0)
+    impuesto = db.Column(db.Float, nullable=False, default=0)
     total = db.Column(db.Float, nullable=False)
-    impuesto = db.Column(db.Float, nullable=False)
-    estado = db.Column(db.String(20), default='emitida')  # por ejemplo
+
+    imputa_iva = db.Column(db.String(1), nullable=False, default='N')
+    imputa_ire = db.Column(db.String(1), nullable=False, default='N')
+    imputa_irp_rsp = db.Column(db.String(1), nullable=False, default='N')
+    no_imputa = db.Column(db.String(1), nullable=False, default='N')
+
+    numero_comprobante_asociado = db.Column(db.String(20), nullable=True)
 
     detalles = db.relationship('DetalleFactura', backref='factura', lazy=True)
     cobranzas = db.relationship('Cobranza', backref='factura', lazy=True)
@@ -149,7 +162,8 @@ class DetalleFactura(db.Model):
 class MetodoPago(db.Model):
     __tablename__ = 'metodos_pago'
     id = db.Column(db.Integer, primary_key=True)
-    nombre = db.Column(db.String(50), unique=True, nullable=False)  # efectivo, tarjeta, cheque, etc
+    nombre = db.Column(db.String(50), unique=True, nullable=False)
+
 
 class Cobranza(db.Model):
     __tablename__ = 'cobranzas'
@@ -160,6 +174,9 @@ class Cobranza(db.Model):
     metodo_pago_id = db.Column(db.Integer, db.ForeignKey('metodos_pago.id'), nullable=False)
     descripcion = db.Column(db.String(255))
     usuario_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)
+
+    numero_cuenta_tarjeta = db.Column(db.String(30), nullable=True)
+    banco_financiera = db.Column(db.String(250), nullable=True)
 
     metodo_pago = db.relationship('MetodoPago')
 
@@ -181,7 +198,7 @@ class ArchivoRG90(db.Model):
     fecha_generacion = db.Column(db.DateTime, default=datetime.utcnow)
     nombre_archivo = db.Column(db.String(150), nullable=False)
     ruta_archivo = db.Column(db.String(255), nullable=False)
-    estado = db.Column(db.String(50))  # 'generado', 'error', etc
+    estado = db.Column(db.String(50))
 
 
 # -------------- Bitácora general de acciones ----------------
@@ -190,11 +207,13 @@ class Bitacora(db.Model):
     __tablename__ = 'bitacora'
     id = db.Column(db.Integer, primary_key=True)
     usuario_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)
-    accion = db.Column(db.String(255), nullable=False)  # Ej: "Registro producto X", "Cierre de caja"
+    accion = db.Column(db.String(255), nullable=False)
     fecha = db.Column(db.DateTime, default=datetime.utcnow)
-    detalles = db.Column(db.Text)  # detalles opcionales (json, texto, etc)
+    detalles = db.Column(db.Text)
+
 
 #----------------Datos de la Empresa-----------------------
+
 class Empresa(db.Model):
     __tablename__ = 'empresa'
     id = db.Column(db.Integer, primary_key=True)
@@ -203,7 +222,7 @@ class Empresa(db.Model):
     direccion = db.Column(db.String(150), nullable=False)
     ciudad = db.Column(db.String(100), nullable=False)
     telefono = db.Column(db.String(50), nullable=False)
-    
+
     timbrado_numero = db.Column(db.String(20), nullable=False)
     timbrado_vigencia_desde = db.Column(db.Date, nullable=False)
     timbrado_vigencia_hasta = db.Column(db.Date, nullable=False)

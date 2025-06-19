@@ -3,7 +3,6 @@
 {% block title %}{{ titulo }}{% endblock %}
 
 {% block content %}
-<!-- Enlace al CSS externo -->
 <link rel="stylesheet" href="{{ url_for('static', filename='css/formulario.css') }}">
 <h2>{{ titulo }}</h2>
 <form method="POST">
@@ -45,6 +44,25 @@
         {{ form.precio_venta.label(class="form-label") }}
         {{ form.precio_venta(class="form-control") }}
         {% for error in form.precio_venta.errors %}
+            <div class="text-danger">{{ error }}</div>
+        {% endfor %}
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Tipo de IVA</label>
+        <div class="btn-group d-flex" role="group" aria-label="IVA options">
+            {% for value, label in form.iva_tipo.choices %}
+                <input type="radio"
+                       class="btn-check"
+                       name="{{ form.iva_tipo.name }}"
+                       id="iva_{{ value }}"
+                       autocomplete="off"
+                       value="{{ value }}"
+                       {% if form.iva_tipo.data == value %}checked{% endif %}>
+                <label class="btn btn-outline-primary" for="iva_{{ value }}">{{ label }}</label>
+            {% endfor %}
+        </div>
+        {% for error in form.iva_tipo.errors %}
             <div class="text-danger">{{ error }}</div>
         {% endfor %}
     </div>

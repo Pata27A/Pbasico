@@ -10,6 +10,7 @@
             <th>Nombre</th>
             <th>Precio Costo</th>
             <th>Precio Venta</th>
+            <th>IVA</th>
             <th>Stock Mínimo</th>
             <th>Stock Actual</th>
             <th>Acciones</th>
@@ -22,6 +23,15 @@
             <td>{{ producto.nombre }}</td>
             <td>{{ producto.precio_costo }}</td>
             <td>{{ producto.precio_venta }}</td>
+            <td>
+                {% if producto.iva_tipo == '10' %}
+                    IVA 10%
+                {% elif producto.iva_tipo == '05' %}
+                    IVA 5%
+                {% else %}
+                    Exenta
+                {% endif %}
+            </td>
             <td>{{ producto.stock_minimo }}</td>
             <td>{{ producto.stock_actual }}</td>
             <td>
