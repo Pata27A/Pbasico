@@ -1,0 +1,154 @@
+{% extends "base_menu.html" %}
+
+{% block content %}
+<h3>Nueva Factura de Compra</h3>
+
+<form method="post" id="formCompra">
+  <!-- Proveedor -->
+  <div class="mb-3">
+    <label for="proveedor" class="form-label">Proveedor</label>
+    <input type="hidden" name="proveedor_id" id="proveedor_id">
+    <input type="text" id="proveedor_buscar" class="form-control" placeholder="Buscar proveedor..." required readonly>
+    <div id="sugerencias" class="list-group"></div>
+    <button type="button" id="crearProveedorBtn" class="btn btn-sm btn-secondary mt-1">+ Crear proveedor</button>
+  </div>
+
+  <!-- Fecha -->
+  <div class="mb-3">
+    <label for="fecha" class="form-label">Fecha</label>
+    <input type="date" name="fecha" class="form-control" value="{{ current_date }}" required>
+  </div>
+
+  <!-- Número -->
+  <div class="mb-3">
+    <label for="numero_factura" class="form-label">Número de Factura</label>
+    <input type="text" name="numero_factura" class="form-control" required>
+  </div>
+
+  <!-- Concepto -->
+  <div class="mb-3">
+    <label for="concepto" class="form-label">Concepto</label>
+    <input type="text" name="concepto" class="form-control">
+  </div>
+
+  <!-- Monto -->
+  <div class="mb-3">
+    <label for="monto_total" class="form-label">Monto Total</label>
+    <input type="number" step="0.01" name="monto_total" class="form-control" required>
+  </div>
+
+  <!-- Tipo de comprobante -->
+  <div class="mb-3">
+    <label for="tipo_comprobante" class="form-label">Tipo de Comprobante</label>
+    <select name="tipo_comprobante" class="form-select" required>
+      <option value="">-- Seleccionar --</option>
+      <option value="Factura">Factura</option>
+      <option value="Ticket">Ticket</option>
+      <option value="Otro">Otro</option>
+    </select>
+  </div>
+
+  <!-- Condición de compra -->
+  <div class="mb-3">
+    <label for="condicion" class="form-label">Condición</label>
+    <select name="condicion" class="form-select" required>
+      <option value="">-- Seleccionar --</option>
+      <option value="Contado">Contado</option>
+      <option value="Crédito">Crédito</option>
+    </select>
+  </div>
+
+  <!-- Timbrado -->
+  <div class="mb-3">
+    <label for="timbrado" class="form-label">Timbrado</label>
+    <input type="text" name="timbrado" class="form-control" maxlength="20">
+  </div>
+
+  <!-- IVA tipo -->
+  <div class="mb-3">
+    <label class="form-label">Tipo de IVA</label>
+    <div class="btn-group d-flex" role="group">
+      <input type="radio" class="btn-check" name="iva_tipo" id="iva_10" value="10" autocomplete="off" required>
+      <label class="btn btn-outline-primary" for="iva_10">IVA 10%</label>
+
+      <input type="radio" class="btn-check" name="iva_tipo" id="iva_5" value="5" autocomplete="off">
+      <label class="btn btn-outline-primary" for="iva_5">IVA 5%</label>
+
+      <input type="radio" class="btn-check" name="iva_tipo" id="iva_0" value="0" autocomplete="off">
+      <label class="btn btn-outline-primary" for="iva_0">Exenta</label>
+    </div>
+  </div>
+
+  <button type="submit" class="btn btn-primary">Registrar compra</button>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const inputBuscar = document.getElementById("proveedor_buscar");
+  const sugerencias = document.getElementById("sugerencias");
+  const proveedorId = document.getElementById("proveedor_id");
+  const formCompra = document.getElementById("formCompra");
+
+  inputBuscar.removeAttribute("readonly");
+
+  inputBuscar.addEventListener("input", async () => {
+    const q = inputBuscar.value.trim();
+    proveedorId.value = "";
+    if (!q) {
+      sugerencias.innerHTML = "";
+      return;
+    }
+
+    const res = await fetch(`/proveedores/buscar?q=${encodeURIComponent(q)}`);
+    const data = await res.json();
+
+    sugerencias.innerHTML = "";
+    data.forEach(p => {
+      const item = document.createElement("a");
+      item.href = "#";
+      item.className = "list-group-item list-group-item-action";
+      item.textContent = `${p.nombre} (${p.ruc})`;
+      item.addEventListener("click", (e) => {
+        e.preventDefault();
+        inputBuscar.value = `${p.nombre} (${p.ruc})`;
+        proveedorId.value = p.id;
+        sugerencias.innerHTML = "";
+      });
+      sugerencias.appendChild(item);
+    });
+  });
+
+  document.getElementById("crearProveedorBtn").addEventListener("click", async () => {
+    const nombre = prompt("Nombre o Razón Social:");
+    if (!nombre) return;
+    const ruc = prompt("RUC:");
+    if (!ruc) return;
+
+    const res = await fetch("/proveedores/crear", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nombre, ruc })
+    });
+    const data = await res.json();
+
+    if (data.ok) {
+      inputBuscar.value = `${data.nombre} (${data.ruc})`;
+      proveedorId.value = data.id;
+      alert("Proveedor creado correctamente");
+    } else {
+      alert("Error: " + data.error);
+    }
+  });
+
+  formCompra.addEventListener("submit", (e) => {
+    if (!proveedorId.value) {
+      e.preventDefault();
+      alert("Debes seleccionar un proveedor de la lista o crear uno nuevo.");
+      inputBuscar.focus();
+    }
+  });
+});
+</script>
+{% endblock %}

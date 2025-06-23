@@ -59,6 +59,7 @@
                 <a class="d-block text-white-50 mb-1" href="{{ url_for('main_bp.listado_facturas') }}">Listado de Facturas</a>
                 <a class="d-block text-white-50" href="{{ url_for('main_bp.cobranzas') }}">Cobranzas</a>
             </div>
+            <a class="d-block text-white-50" href="{{ url_for('main_bp.nueva_factura_compra') }}">Registrar Compra</a>
             <a class="d-block text-white mb-2" href="{{ url_for('main_bp.mostrar_reporte') }}">Ganancias</a>
             <a class="d-block text-white mb-2" data-bs-toggle="collapse" href="#informesSubmenu" role="button" aria-expanded="false" aria-controls="informesSubmenu">
                  Informes
@@ -69,7 +70,14 @@
                 <a class="d-block text-white-50 mb-1" href="{{ url_for('main_bp.reporte_ventas_form') }}">Reporte Ventas - Ganancias</a>
 
             </div>
-            <a class="d-block text-white mb-2" href="{{ url_for('main_bp.rg90') }}">🧾 RG90 (SET)</a>
+            <!-- Dentro del sidebar nav -->
+            <a class="d-block text-white mb-2" data-bs-toggle="collapse" href="#rg90Submenu" role="button" aria-expanded="false" aria-controls="rg90Submenu">
+                RG90 (SET)
+            </a>
+            <div class="collapse ps-3" id="rg90Submenu">
+                <a class="d-block text-white-50 mb-1" href="{{ url_for('main_bp.rg90') }}">Ventas</a>
+                <a class="d-block text-white-50" href="{{ url_for('main_bp.rg90_compras') }}">Compras</a>
+            </div>
             <a class="d-block text-white mb-2" href="{{ url_for('main_bp.configurar_empresa') }}">Configuración Empresa</a>
 
             <a class="d-block text-danger mt-4" href="{{ url_for('main_bp.logout') }}">Cerrar sesión</a>

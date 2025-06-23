@@ -228,3 +228,48 @@ class Empresa(db.Model):
     timbrado_vigencia_hasta = db.Column(db.Date, nullable=False)
 
     fecha_creacion = db.Column(db.DateTime, default=datetime.utcnow)
+
+    #---------------Compras----------------
+
+class Proveedor(db.Model):
+    __tablename__ = 'proveedores'
+    id = db.Column(db.Integer, primary_key=True)
+    nombre = db.Column(db.String(150), nullable=False)  # Nombre o Razón Social
+    ruc = db.Column(db.String(50), nullable=False, unique=True)
+
+    facturas_compra = db.relationship('FacturaCompra', backref='proveedor', lazy=True)
+
+    def __repr__(self):
+        return f"<Proveedor {self.nombre} - {self.ruc}>"
+
+
+class FacturaCompra(db.Model):
+    __tablename__ = 'facturas_compra'
+    id = db.Column(db.Integer, primary_key=True)
+    proveedor_id = db.Column(db.Integer, db.ForeignKey('proveedores.id'), nullable=False)
+
+    fecha = db.Column(db.Date, nullable=False)
+    numero_factura = db.Column(db.String(50), nullable=False)
+    concepto = db.Column(db.String(255))
+    monto_total = db.Column(db.Float, nullable=False)
+
+    tipo_comprobante = db.Column(db.String(50), nullable=True)
+    condicion = db.Column(db.String(20), nullable=True)
+    timbrado = db.Column(db.String(20), nullable=True)
+
+    # 🧮 Desglose de IVA
+    iva_10 = db.Column(db.Float, nullable=True)
+    iva_5 = db.Column(db.Float, nullable=True)
+    exentas = db.Column(db.Float, nullable=True)
+
+    usuario_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)
+    usuario = db.relationship('Usuario', backref='facturas_compra', lazy=True)
+
+    movimiento_id = db.Column(db.Integer, db.ForeignKey('movimientos_caja.id'))
+    movimiento = db.relationship('MovimientoCaja', backref='factura_compra', uselist=False)
+
+    fecha_registro = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<FacturaCompra {self.numero_factura} - {self.monto_total}>"
+

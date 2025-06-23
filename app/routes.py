@@ -11,13 +11,16 @@ from flask import Blueprint, jsonify, make_response, render_template, redirect, 
 from flask_login import login_user, logout_user, login_required, current_user
 from sqlalchemy import extract, func
 from app.forms import LoginForm, ProductoForm
-from app.models import Caja, Cliente, Cobranza, DetalleFactura, Empresa, Factura, MetodoPago, MovimientoCaja, Producto, Usuario, Categoria
+from app.models import Caja, Cliente, Cobranza, DetalleFactura, Empresa, Factura, FacturaCompra, MetodoPago, MovimientoCaja, Producto, Proveedor, Usuario, Categoria
 from app import db
 from app.utils import generar_numero_factura
 import generar_archivo_rg90
 # Importa tus funciones de generación y validación RG90
 from generar_archivo_rg90 import generar_archivo_rg90
 from app.scripts.rg90_validacion import validar_linea
+from generar_archivo_rg90_compras import generar_archivo_rg90_compras
+from app.scripts.compras.rg90_validacion_compras import validar_linea, validar_archivo
+
 
 main_bp = Blueprint('main_bp', __name__)
 
@@ -263,7 +266,6 @@ def facturacion():
                            clientes=clientes,
                            metodos_pago=metodos_pago,
                            vuelto=vuelto)
-
 @main_bp.route('/facturacion/guardar', methods=['POST'])
 @login_required
 def guardar_factura():
@@ -337,7 +339,7 @@ def guardar_factura():
         impuesto_total = round(iva_10 + iva_5, 2)
         nueva_factura.impuesto = impuesto_total
 
-        # Guardar pagos y movimientos caja
+        # Guardar pagos y movimientos caja (Ingresos)
         for pago in pagos:
             pago_db = Cobranza(
                 factura_id=nueva_factura.id,
@@ -358,9 +360,19 @@ def guardar_factura():
                     usuario_id=current_user.id
                 )
                 db.session.add(movimiento)
-            else:
-                # Aquí podés loguear que no hay caja abierta, si querés
-                pass
+
+        # Registrar vuelto como Egreso si es mayor a 0
+        if vuelto > 0:
+            caja = obtener_caja_abierta()
+            if caja:
+                movimiento_vuelto = MovimientoCaja(
+                    caja_id=caja.id,
+                    tipo='Egreso',
+                    monto=vuelto,
+                    descripcion=f'Vuelto para factura {nueva_factura.numero}',
+                    usuario_id=current_user.id
+                )
+                db.session.add(movimiento_vuelto)
 
         db.session.commit()
 
@@ -374,6 +386,7 @@ def guardar_factura():
         db.session.rollback()
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
+
 
 
 @main_bp.route('/facturacion/api/buscar_producto')
@@ -958,3 +971,181 @@ def rg90_validar_local():
 
     except Exception as e:
         return jsonify({"ok": False, "errores": [str(e)]})
+
+#---------------Compras RG90-------------------
+@main_bp.route('/rg90/compras')
+@login_required
+def rg90_compras():
+    return render_template('rg90/interfaz_compras.html')
+
+@main_bp.route('/rg90/compras', methods=['POST'])
+@login_required
+def rg90_compras_ajax():
+    periodo = request.form.get('periodo')
+    if not periodo or len(periodo) != 6:
+        return jsonify({"ok": False, "errores": ["Período inválido."]})
+    try:
+        ruta_zip = generar_archivo_rg90_compras(periodo=periodo)
+        ruta_csv = ruta_zip.replace('.zip', '.csv')
+
+        errores = []
+        with open(ruta_csv, encoding='utf-8') as f:
+            reader = csv.reader(f, delimiter=';')
+            for i, linea in enumerate(reader, start=1):
+                errores.extend(validar_linea(linea, i))  # Aquí se usa validar_linea
+
+        if errores:
+            return jsonify({"ok": False, "errores": errores})
+        nombre_zip = os.path.basename(ruta_zip)
+        return jsonify({"ok": True, "archivo": nombre_zip})
+    except Exception as e:
+        return jsonify({"ok": False, "errores": [str(e)]})
+
+@main_bp.route('/rg90/compras/validar_local', methods=['POST'])
+@login_required
+def rg90_validar_local_compras():
+    data = request.get_json()
+    contenido_csv = data.get('contenido_csv')
+    if not contenido_csv:
+        return jsonify({"ok": False, "errores": ["No se recibió contenido del archivo CSV."]})
+    errores = []
+    try:
+        f = StringIO(contenido_csv)
+        reader = csv.reader(f, delimiter=';')
+        for i, linea in enumerate(reader, start=1):
+            errores.extend(validar_linea(linea, i))  # Aquí también validar_linea
+        return jsonify({"ok": not errores, "errores": errores})
+    except Exception as e:
+        return jsonify({"ok": False, "errores": [str(e)]})
+
+#----------------------factura de compra-------------------
+# Buscar proveedor por nombre o RUC (para el buscador AJAX)
+@main_bp.route('/proveedores/buscar')
+@login_required
+def buscar_proveedores():
+    q = request.args.get('q', '').strip()
+    if not q:
+        return jsonify([])
+
+    proveedores = Proveedor.query.filter(
+        (Proveedor.nombre.ilike(f'%{q}%')) | (Proveedor.ruc.ilike(f'%{q}%'))
+    ).all()
+
+    resultado = [{"id": p.id, "nombre": p.nombre, "ruc": p.ruc} for p in proveedores]
+    return jsonify(resultado)
+
+
+# Crear proveedor rápido desde el frontend
+@main_bp.route('/proveedores/crear', methods=['POST'])
+@login_required
+def crear_proveedor():
+    data = request.get_json()
+    nombre = data.get('nombre', '').strip()
+    ruc = data.get('ruc', '').strip()
+
+    if not nombre or not ruc:
+        return jsonify({"ok": False, "error": "Nombre y RUC son obligatorios."})
+
+    if Proveedor.query.filter_by(ruc=ruc).first():
+        return jsonify({"ok": False, "error": "El RUC ya existe."})
+
+    nuevo = Proveedor(nombre=nombre, ruc=ruc)
+    db.session.add(nuevo)
+    db.session.commit()
+
+    return jsonify({"ok": True, "id": nuevo.id, "nombre": nuevo.nombre, "ruc": nuevo.ruc})
+
+
+# Crear factura compra
+@main_bp.route('/compras/nueva', methods=['GET', 'POST'])
+@login_required
+def nueva_factura_compra():
+    hoy = datetime.date.today()
+    caja = Caja.query.filter_by(fecha=hoy, abierta=True).first()
+
+    if request.method == 'POST':
+        try:
+            proveedor_id = request.form.get('proveedor_id')
+            fecha = request.form.get('fecha')
+            numero_factura = request.form.get('numero_factura')
+            concepto = request.form.get('concepto', '')
+            monto_total = float(request.form.get('monto_total', 0))
+            tipo_comprobante = request.form.get('tipo_comprobante', '').strip()
+            condicion = request.form.get('condicion', '').strip()
+            timbrado = request.form.get('timbrado', '').strip() or None
+            iva_tipo = request.form.get('iva_tipo')
+
+            # Validaciones
+            if not proveedor_id or not proveedor_id.isdigit():
+                flash('⚠️ Debe seleccionar un proveedor válido.', 'warning')
+                return redirect(url_for('main_bp.nueva_factura_compra'))
+
+            if not numero_factura.strip():
+                flash('⚠️ Debe ingresar el número de factura.', 'warning')
+                return redirect(url_for('main_bp.nueva_factura_compra'))
+
+            if not tipo_comprobante:
+                flash('⚠️ Debe ingresar el tipo de comprobante.', 'warning')
+                return redirect(url_for('main_bp.nueva_factura_compra'))
+
+            if not condicion:
+                flash('⚠️ Debe ingresar la condición de la compra.', 'warning')
+                return redirect(url_for('main_bp.nueva_factura_compra'))
+
+            if iva_tipo not in ['10', '5', '0']:
+                flash('⚠️ Debe seleccionar un tipo de IVA válido.', 'warning')
+                return redirect(url_for('main_bp.nueva_factura_compra'))
+
+            # Calcular IVA
+            iva_10 = iva_5 = exentas = 0.0
+            if iva_tipo == '10':
+                iva_10 = round(monto_total / 11, 2)
+            elif iva_tipo == '5':
+                iva_5 = round(monto_total / 21, 2)
+            elif iva_tipo == '0':
+                exentas = monto_total
+
+            # Crear factura
+            factura = FacturaCompra(
+                proveedor_id=int(proveedor_id),
+                fecha=fecha,
+                numero_factura=numero_factura.strip(),
+                concepto=concepto.strip(),
+                monto_total=monto_total,
+                tipo_comprobante=tipo_comprobante,
+                condicion=condicion,
+                timbrado=timbrado,
+                iva_10=iva_10,
+                iva_5=iva_5,
+                exentas=exentas,
+                usuario_id=current_user.id,
+                fecha_registro=datetime.datetime.utcnow()
+            )
+            db.session.add(factura)
+            db.session.flush()
+
+            if caja:
+                movimiento = MovimientoCaja(
+                    caja_id=caja.id,
+                    tipo='egreso',
+                    monto=monto_total,
+                    descripcion=f'Compra: {concepto}',
+                    usuario_id=current_user.id
+                )
+                db.session.add(movimiento)
+                db.session.flush()
+                factura.movimiento_id = movimiento.id
+            else:
+                flash('⚠️ Caja no abierta. Se registró la compra, pero no se generó movimiento en caja.', 'warning')
+
+            db.session.commit()
+            flash('✅ Factura de compra registrada correctamente.', 'success')
+            return redirect(url_for('main_bp.caja_resumen'))
+
+        except Exception as e:
+            db.session.rollback()
+            print(">>> ERROR AL GUARDAR:", e)
+            flash(f'❌ Error al registrar la compra: {e}', 'danger')
+            return redirect(url_for('main_bp.nueva_factura_compra'))
+
+    return render_template('compras/nueva.html')
